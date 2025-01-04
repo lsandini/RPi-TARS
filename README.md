@@ -1,6 +1,53 @@
 # Raspberry Pi Voice Assistant
 
-A voice-controlled assistant running on Raspberry Pi that combines wake word detection, speech recognition, AI processing, and text-to-speech capabilities. This project integrates several powerful technologies to create a responsive and intelligent voice interface.
+# Raspberry Pi Voice Assistant
+
+A voice-controlled assistant running on Raspberry Pi that provides a complete voice interaction pipeline:
+
+1. **Wake Word Detection** (Picovoice Porcupine)
+   - Continuously listens for the wake phrase "Hey Computer"
+   - Low resource usage while waiting for activation
+   - Triggers the full speech recognition when detected
+
+2. **Speech Recognition** (Vosk)
+   - Activates after wake word detection
+   - Captures user's speech through microphone
+   - Converts speech to text locally
+   - Provides real-time transcription
+
+3. **AI Processing** (OpenAI/Claude)
+   - Takes transcribed text as input
+   - Sends as a prompt to AI model
+   - Receives and processes AI response
+   - Handles various types of queries and commands
+
+4. **Text-to-Speech** (Google Cloud TTS)
+   - Converts AI's text response to natural speech
+   - Synthesizes human-like voice output
+   - Supports multiple languages and voices
+
+5. **Audio Playback**
+   - Outputs synthesized speech through speakers
+   - Completes the interaction loop
+
+The system operates in a continuous loop:
+```
+[Waiting for Wake Word] 
+    ↓
+"Hey Computer" detected
+    ↓
+Speech Recognition activates
+    ↓
+Text sent to AI for processing
+    ↓
+AI response converted to speech
+    ↓
+Response played through speakers
+    ↓
+[Returns to waiting for Wake Word]
+```
+
+This creates a fluid, conversational interface that combines the reliability of local speech recognition with the intelligence of cloud-based AI processing.
 
 ## Features
 
