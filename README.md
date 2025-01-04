@@ -14,8 +14,8 @@ A voice-controlled assistant running on Raspberry Pi that combines wake word det
 
 ### Hardware Requirements
 - Raspberry Pi 3B+ or better (for deployment)
-- USB Microphone or USB Sound Card
-- Speakers (USB or 3.5mm audio output)
+- USB Microphone or USB Sound Card (Seeedvoice ReSpeaker-2Mic-Pi-HAT)
+- Speakers (JST/ USB or 3.5mm audio output)
 - Internet connection
 
 ### API Keys Required
@@ -29,8 +29,8 @@ The installation process is split into three automated parts for better control 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/rpi-voice-assistant.git
-cd rpi-voice-assistant
+git clone https://github.com/lsandini/RPi-TARS.git
+cd RPi-TARS
 ```
 
 2. Make the setup scripts executable:
