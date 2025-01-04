@@ -53,7 +53,7 @@ class WakeWordDetector:
         self.recorder = None
         self.access_key = access_key
         self.keyword_paths = keyword_paths
-        self.keywords = keywords or ["snowboy"]
+        self.keywords = keywords or ["jarvis"]
         self.sensitivities = sensitivities or [0.5]
         
     def start(self, callback_fn):
@@ -136,7 +136,7 @@ class VoiceAssistant:
             if picovoice_key:
                 self.wake_word_detector = WakeWordDetector(
                     access_key=picovoice_key,
-                    keywords=["snowboy"]
+                    keywords=["jarvis"]
                 )
             else:
                 self.wake_word_detector = None
