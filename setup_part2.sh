@@ -16,17 +16,25 @@ import logging
 
 class OpenAIHandler:
     def __init__(self):
-        self.client = OpenAI()
-        
+        try:
+            self.client = OpenAI(
+                api_key=os.getenv('OPENAI_API_KEY')
+            )
+            logging.info("OpenAI handler initialized successfully")
+        except Exception as e:
+            logging.error(f"Error initializing OpenAI client: {e}")
+            raise
+
     async def process_text(self, text):
         try:
-            response = await self.client.chat.completions.create(
+            completion = await self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "user", "content": text}
                 ]
             )
-            return response.choices[0].message.content
+            return completion.choices[0].message.content
+            
         except Exception as e:
             logging.error(f"Error in OpenAI processing: {e}")
             return None
