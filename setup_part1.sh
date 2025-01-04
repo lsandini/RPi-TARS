@@ -66,7 +66,9 @@ class SpeechToText:
                 logging.error(f"Error processing audio: {e}")
         try:
             with sd.InputStream(samplerate=self.sample_rate, device=self.device,
-                              dtype='int16', channels=1, callback=audio_callback):
+                              dtype='int16', channels=1, callback=audio_callback,
+                              blocksize=2048, extra_settings=sd.default.extra_settings
+                            ):
                 logging.info("Microphone stream opened. Listening...")
                 print("Listening... Speak now.")
                 while not self.stop_event.is_set():
