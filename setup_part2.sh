@@ -233,8 +233,9 @@ class VoiceAssistant:
 def main():
     try:
         # Get model path from environment or use default
-        model_path = os.getenv('VOSK_MODEL_PATH', 
-                              os.path.join(os.path.dirname(__file__), '../models/vosk-model-small-en-us'))
+        model_path = os.path.join(os.path.dirname(__file__), 
+                         '..', 
+                         os.getenv('VOSK_MODEL_PATH', 'models/vosk-model-small-en-us-0.15').strip())
         
         # Initialize and start voice assistant
         assistant = VoiceAssistant(model_path)
