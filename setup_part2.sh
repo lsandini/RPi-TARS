@@ -274,58 +274,22 @@ EOF
 
 # Update .gitignore
 cat << 'EOF' > .gitignore
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+# Ignore everything
+*
 
-# Virtual Environment
-venv/
-ENV/
+# But not these files...
+!.gitignore
+!setup_part1.sh
+!setup_part2.sh
+!setup_part3.sh
+!deploy.sh
+!README.md
 
-# Environment Variables
-.env
+# Even if they are in subdirectories
+!*/
 
-# Logs
-logs/*
-!logs/.gitkeep
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Google Cloud credentials
-*.json
-
-# Audio files
-*.wav
-*.mp3
-
-# Models
-models/vosk*
+# But still ignore everything in any directory
+/**/
 EOF
 
 # Create a models directory
