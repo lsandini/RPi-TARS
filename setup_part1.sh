@@ -117,8 +117,8 @@ class TextToSpeech:
                 out.write(response.audio_content)
                 logging.info(f'Audio content written to file {output_file}')
             volume = os.getenv('AUDIO_VOLUME', '50')
-            os.system(f'amixer -q sset Master {volume}%')
-            os.system(f'aplay {output_file}')
+            os.system(f'amixer -q sset PCM {volume}%')
+            os.system(f'aplay -D hw:seeed2micvoicec {output_file}')
         except Exception as e:
             logging.error(f"Error in speech synthesis: {e}")
             raise
