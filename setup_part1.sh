@@ -67,7 +67,7 @@ class SpeechToText:
         try:
             with sd.InputStream(samplerate=self.sample_rate, device=self.device,
                               dtype='int16', channels=2, callback=audio_callback,
-                              blocksize=8192
+                              blocksize=2048
                             ):
                 logging.info("Microphone stream opened. Listening...")
                 print("Listening... Speak now.")
