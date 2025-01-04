@@ -17,23 +17,24 @@ import logging
 class OpenAIHandler:
     def __init__(self):
         try:
-            self.client = OpenAI(
-                api_key=os.getenv('OPENAI_API_KEY')
-            )
+            self.client = OpenAI()  # This will use OPENAI_API_KEY from environment by default
             logging.info("OpenAI handler initialized successfully")
         except Exception as e:
             logging.error(f"Error initializing OpenAI client: {e}")
             raise
 
-    async def process_text(self, text):
+    def process_text(self, text):  # Removed async since the example doesn't use it
         try:
-            completion = await self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+            chat_completion = self.client.chat.completions.create(
                 messages=[
-                    {"role": "user", "content": text}
-                ]
+                    {
+                        "role": "user",
+                        "content": text,
+                    }
+                ],
+                model="gpt-3.5-turbo",  # Using 3.5 instead of gpt-4
             )
-            return completion.choices[0].message.content
+            return chat_completion.choices[0].message.content
             
         except Exception as e:
             logging.error(f"Error in OpenAI processing: {e}")
@@ -135,7 +136,7 @@ class VoiceAssistant:
             if picovoice_key:
                 self.wake_word_detector = WakeWordDetector(
                     access_key=picovoice_key,
-                    keywords=["hey computer"]
+                    keywords=["snowboy"]
                 )
             else:
                 self.wake_word_detector = None

@@ -123,16 +123,29 @@ class TextToSpeech:
 EOF
 
 cat << 'EOF' > requirements.txt
+# Core functionality
 pvporcupine==2.2.0
 pvrecorder==1.1.1
 vosk==0.3.45
-openai==1.0.0
+openai==1.59.3
 anthropic==0.3.0
 google-cloud-texttospeech==2.14.1
 python-dotenv==1.0.0
 sounddevice==0.4.6
 numpy==1.24.3
 pytest==7.4.0
+
+# OpenAI dependencies
+httpx==0.25.2
+httpcore==1.0.2
+anyio==4.1.0
+sniffio==1.3.0
+pydantic==2.10.3
+pydantic-core==2.27.1
+tqdm==4.66.5
+typing-extensions==4.12.2
+distro==1.8.0
+certifi==2023.7.22
 EOF
 
 cat << 'EOF' > .env.template

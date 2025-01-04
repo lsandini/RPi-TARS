@@ -8,7 +8,6 @@
 !setup_part3.sh
 !deploy.sh
 !README.md
-!.env.template
 
 # Even if they are in subdirectories
 !*/
