@@ -29,12 +29,20 @@ import numpy as np
 import logging
 import queue
 import threading
+import warnings
+
+# Suppress specific warnings
+warnings.filterwarnings('ignore', category=RuntimeWarning, module='sounddevice')
 
 class SpeechToText:
     def __init__(self, model_path, sample_rate=16000, device=1):
+        # Configure logging to suppress lower-level warnings
+        logging.getLogger('sounddevice').setLevel(logging.ERROR)
+        logging.getLogger('vosk').setLevel(logging.ERROR)
+        
         logging.info("Initializing Speech-to-Text")
         try:
-            vosk.SetLogLevel(-1)
+            vosk.SetLogLevel(-1)  # Suppress Vosk internal logging
             self.model = vosk.Model(model_path)
             self.sample_rate = sample_rate
             self.device = device
@@ -48,10 +56,14 @@ class SpeechToText:
     def start_recognition(self, callback_fn=None):
         logging.info("Starting speech recognition")
         rec = vosk.KaldiRecognizer(self.model, self.sample_rate)
+        
         def audio_callback(indata, frames, time, status):
             if status:
-                logging.warning(f"Audio input status: {status}")
+                # Only log if it's an actual error
+                if status.test_flags(sd.RingBufferOverflow):
+                    logging.error(f"Audio input buffer overflow")
                 return
+            
             data_bytes = indata.astype(np.int16).tobytes()
             try:
                 if rec.AcceptWaveform(data_bytes):
@@ -64,11 +76,16 @@ class SpeechToText:
                             callback_fn(text)
             except Exception as e:
                 logging.error(f"Error processing audio: {e}")
+        
         try:
-            with sd.InputStream(samplerate=self.sample_rate, device=self.device,
-                              dtype='int16', channels=1, callback=audio_callback,
-                              blocksize=2048
-                            ):
+            with sd.InputStream(
+                samplerate=self.sample_rate, 
+                device=self.device,
+                dtype='int16', 
+                channels=1, 
+                callback=audio_callback,
+                blocksize=2048
+            ):
                 logging.info("Microphone stream opened. Listening...")
                 print("Listening... Speak now.")
                 while not self.stop_event.is_set():
