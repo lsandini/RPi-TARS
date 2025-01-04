@@ -191,7 +191,24 @@ class VoiceAssistant:
         """Callback for wake word detection."""
         logging.info("Wake word detected!")
         self.state = AssistantState.LISTENING
-        self.speak("Yes?")
+        
+        # Wake word responses are predefined
+        wake_responses = [
+            "Yes?", 
+            "How can I help you?", 
+            "I'm listening.", 
+            "What can I do for you?"
+        ]
+        import random
+        response = random.choice(wake_responses)
+        
+        # Log the wake word response
+        logging.info(f"WAKE WORD RESPONSE: {response}")
+        
+        # Speak the response
+        self.tts_engine.synthesize_speech(response)
+        
+        # Start speech recognition
         self.stt_engine.start_recognition(callback_fn=self.process_command)
 
     def process_command(self, text):
@@ -213,14 +230,14 @@ class VoiceAssistant:
             self._last_processed_text = text
             
             # Handle commands
-            if "hello" in text:
+            if "hello" in text or "hi" in text:
                 response = "Hello! How can I help you?"
             elif "time" in text:
                 current_time = datetime.now().strftime("%I:%M %p")
                 response = f"The current time is {current_time}"
             elif "goodbye" in text or "bye" in text:
                 response = "Goodbye! Have a great day."
-                self.speak(response)
+                self.tts_engine.synthesize_speech(response)
                 self.stop()
                 return
             else:
@@ -232,12 +249,12 @@ class VoiceAssistant:
             logging.info(f"OPENAI REPLIED: {response}")
             
             # Speak the response
-            self.speak(response)
+            self.tts_engine.synthesize_speech(response)
                     
         except Exception as e:
             logging.error(f"Error processing command: {e}")
             self.state = AssistantState.ERROR
-            self.speak("Sorry, I encountered an error processing your request.")
+            self.tts_engine.synthesize_speech("Sorry, I encountered an error processing your request.")
             
         finally:
             self.state = AssistantState.IDLE
