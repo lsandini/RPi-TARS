@@ -53,7 +53,7 @@ class WakeWordDetector:
         self.recorder = None
         self.access_key = access_key
         self.keyword_paths = keyword_paths
-        self.keywords = keywords or ["computer"]
+        self.keywords = keywords or ["snowboy"]
         self.sensitivities = sensitivities or [0.5]
         
     def start(self, callback_fn):
