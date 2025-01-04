@@ -31,7 +31,7 @@ import queue
 import threading
 
 class SpeechToText:
-    def __init__(self, model_path, sample_rate=16000, device=None):
+    def __init__(self, model_path, sample_rate=44100, device=1):
         logging.info("Initializing Speech-to-Text")
         try:
             vosk.SetLogLevel(-1)
@@ -66,8 +66,8 @@ class SpeechToText:
                 logging.error(f"Error processing audio: {e}")
         try:
             with sd.InputStream(samplerate=self.sample_rate, device=self.device,
-                              dtype='int16', channels=1, callback=audio_callback,
-                              blocksize=2048
+                              dtype='int16', channels=2, callback=audio_callback,
+                              blocksize=8192
                             ):
                 logging.info("Microphone stream opened. Listening...")
                 print("Listening... Speak now.")
