@@ -1,7 +1,5 @@
 # Raspberry Pi Voice Assistant
 
-# Raspberry Pi Voice Assistant
-
 A voice-controlled assistant running on Raspberry Pi that provides a complete voice interaction pipeline:
 
 1. **Wake Word Detection** (Picovoice Porcupine)
