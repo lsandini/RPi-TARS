@@ -200,6 +200,9 @@ class VoiceAssistant:
             self.state = AssistantState.PROCESSING
             text = text.lower().strip()
             
+            # Log what Vosk heard
+            logging.info(f"YOU SAID: {text}")
+            
             # Prevent repeated processing of the same text
             if not hasattr(self, '_last_processed_text'):
                 self._last_processed_text = None
@@ -211,31 +214,31 @@ class VoiceAssistant:
             
             # Handle commands
             if "hello" in text:
-                self.speak("Hello! How can I help you?")
+                response = "Hello! How can I help you?"
             elif "time" in text:
                 current_time = datetime.now().strftime("%I:%M %p")
-                self.speak(f"The current time is {current_time}")
+                response = f"The current time is {current_time}"
             elif "goodbye" in text or "bye" in text:
-                self.speak("Goodbye! Have a great day.")
+                response = "Goodbye! Have a great day."
+                self.speak(response)
                 self.stop()
+                return
             else:
                 # Process with AI
                 response = self.ai_handler.process_text(text)
-                self.speak(response if response else f"You said: {text}")
-                
+                response = response if response else f"I heard: {text}"
+            
+            # Log OpenAI's response
+            logging.info(f"OPENAI REPLIED: {response}")
+            
+            # Speak the response
+            self.speak(response)
+                    
         except Exception as e:
             logging.error(f"Error processing command: {e}")
             self.state = AssistantState.ERROR
             self.speak("Sorry, I encountered an error processing your request.")
             
-        finally:
-            self.state = AssistantState.IDLE
-
-    def speak(self, text):
-        """Wrapper for TTS with state management."""
-        try:
-            self.state = AssistantState.SPEAKING
-            self.tts_engine.synthesize_speech(text)
         finally:
             self.state = AssistantState.IDLE
 
