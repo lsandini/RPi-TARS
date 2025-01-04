@@ -116,7 +116,8 @@ class TextToSpeech:
             with open(output_file, 'wb') as out:
                 out.write(response.audio_content)
                 logging.info(f'Audio content written to file {output_file}')
-            os.system(f'aplay {output_file}')
+            volume = os.getenv('AUDIO_VOLUME', '50')
+            os.system(f'aplay --volume={volume} {output_file}')
         except Exception as e:
             logging.error(f"Error in speech synthesis: {e}")
             raise
@@ -167,6 +168,9 @@ WAKE_WORD_SENSITIVITY=0.5
 
 # Paths
 VOSK_MODEL_PATH=path_to_vosk_model
+
+# Audio Volume
+AUDIO_VOLUME=50
 EOF
 
 # Create start script
