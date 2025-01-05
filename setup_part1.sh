@@ -31,7 +31,7 @@ import queue
 import threading
 
 class SpeechToText:
-    def __init__(self, model_path, sample_rate=44100, device=1):
+    def __init__(self, model_path, sample_rate=16000, device=1):
         logging.info("Initializing Speech-to-Text")
         try:
             vosk.SetLogLevel(-1)
@@ -162,7 +162,7 @@ PICOVOICE_ACCESS_KEY=your_picovoice_key_here
 GOOGLE_APPLICATION_CREDENTIALS=path_to_your_credentials.json
 
 # Audio Settings
-SAMPLE_RATE=44100
+SAMPLE_RATE=16000
 CHANNELS=1
 FRAME_LENGTH=2048
 

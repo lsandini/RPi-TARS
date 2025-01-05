@@ -130,7 +130,7 @@ class AssistantState(Enum):
     ERROR = "error"
 
 class VoiceAssistant:
-    def __init__(self, model_path, sample_rate=44100, device=None):
+    def __init__(self, model_path, sample_rate=16000, device=None):
         logging.info("Initializing Voice Assistant")
         
         try:
