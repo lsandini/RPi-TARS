@@ -31,7 +31,7 @@ import queue
 import threading
 
 class SpeechToText:
-    def __init__(self, model_path, sample_rate=16000, device=1):
+    def __init__(self, model_path, sample_rate=16000, device=3):
         logging.info("Initializing Speech-to-Text")
         try:
             vosk.SetLogLevel(-1)
@@ -129,7 +129,7 @@ EOF
 cat << 'EOF' > requirements.txt
 # Core functionality
 pvporcupine==2.2.0
-pvrecorder==1.1.1
+pvrecorder==1.2
 vosk==0.3.45
 openai==1.59.3
 anthropic==0.3.0
