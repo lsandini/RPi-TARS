@@ -58,18 +58,6 @@ This creates a fluid, conversational interface that combines the reliability of 
 ## Prerequisites
 
 ### Hardware Requirements
-- Raspberry Pi 3B+ or better (for deployment)
-- Tested on RaspBerry Pi 4 8 GB
-- RaspiOS 64-bit (bookworm)
-- USB Microphone or USB Sound Card (Seeedvoice ReSpeaker-2Mic-Pi-HAT)
-- Speakers (JST/ USB or 3.5mm audio output)
-- Internet connection
-- For SeeedVoice ReSpeaker 2-MICS Pi HAT, use these installation instructions : 
-  https://github.com/HinTak/seeed-voicecard?tab=readme-ov-file#install-seeed-voicecard
-
-  The markdown is mostly correct but could be improved for better formatting. Here's the corrected version with proper spacing and consistent header formatting:
-
-# Hardware Requirements
 
 - Raspberry Pi 3B+ or better (for deployment)
 - Tested on Raspberry Pi 4 8GB
