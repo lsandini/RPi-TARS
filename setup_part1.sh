@@ -129,7 +129,7 @@ EOF
 cat << 'EOF' > requirements.txt
 # Core functionality
 pvporcupine==2.2.0
-pvrecorder==1.2
+pvrecorder==1.1.1
 vosk==0.3.45
 openai==1.59.3
 anthropic==0.3.0
