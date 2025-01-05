@@ -31,7 +31,7 @@ import queue
 import threading
 
 class SpeechToText:
-    def __init__(self, model_path, sample_rate=16000, device=3):
+    def __init__(self, model_path, sample_rate=16000, device=1):
         logging.info("Initializing Speech-to-Text")
         try:
             vosk.SetLogLevel(-1)
