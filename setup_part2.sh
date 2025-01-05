@@ -41,7 +41,6 @@ class OpenAIHandler:
             return None
 EOF
 
-# Create wake word detector
 cat << 'EOF' > src/speech/wake_word.py
 import pvporcupine
 from pvrecorder import PvRecorder
@@ -55,9 +54,22 @@ class WakeWordDetector:
         self.keyword_paths = keyword_paths
         self.keywords = keywords or ["jarvis"]
         self.sensitivities = sensitivities or [0.5]
+        self.stop_flag = False
+        
+    def cleanup(self):
+        """Cleanup Porcupine resources"""
+        if self.recorder is not None:
+            self.recorder.delete()
+            self.recorder = None
+        if self.porcupine is not None:
+            self.porcupine.delete()
+            self.porcupine = None
+        self.stop_flag = True
+        logging.info("Porcupine resources cleaned up")
         
     def start(self, callback_fn):
         try:
+            self.stop_flag = False
             self.porcupine = pvporcupine.create(
                 access_key=self.access_key,
                 keyword_paths=self.keyword_paths,
@@ -68,24 +80,22 @@ class WakeWordDetector:
             self.recorder = PvRecorder(device_index=-1, frame_length=self.porcupine.frame_length)
             self.recorder.start()
             
-            while True:
+            while not self.stop_flag:
                 pcm = self.recorder.read()
                 result = self.porcupine.process(pcm)
                 if result >= 0:
                     callback_fn()
+                    break  # Exit after wake word detection
                     
         except Exception as e:
             logging.error(f"Error in wake word detection: {e}")
             raise
             
         finally:
-            if self.recorder is not None:
-                self.recorder.delete()
-            if self.porcupine is not None:
-                self.porcupine.delete()
+            self.cleanup()
 EOF
 
-# Create main application with all components integrated
+# Modify the main.py script 
 cat << 'EOF' > src/main.py
 import os
 import threading
@@ -156,22 +166,13 @@ class VoiceAssistant:
         logging.info("Starting voice assistant")
         
         try:
-            if self.wake_word_detector:
-                # Start wake word detection in a separate thread
-                wake_thread = threading.Thread(
-                    target=self.wake_word_detector.start,
-                    args=(self.on_wake_word,)
-                )
-                wake_thread.daemon = True
-                wake_thread.start()
-            
-            # Start in listening mode if no wake word detector
-            else:
-                self.on_wake_word()
-            
-            # Keep the assistant running
             while not self.stop_event.is_set():
-                time.sleep(1)
+                if self.wake_word_detector:
+                    # Start wake word detection
+                    self.wake_word_detector.start(self.on_wake_word)
+                    time.sleep(1)  # Small delay before restarting wake word detection
+                else:
+                    self.on_wake_word()
                 
         except Exception as e:
             logging.error(f"Error in assistant main loop: {e}")
@@ -191,6 +192,10 @@ class VoiceAssistant:
         """Callback for wake word detection."""
         logging.info("Wake word detected!")
         self.state = AssistantState.LISTENING
+        
+        # Cleanup wake word detector resources
+        if self.wake_word_detector:
+            self.wake_word_detector.cleanup()
         
         # Wake word responses are predefined
         wake_responses = [
