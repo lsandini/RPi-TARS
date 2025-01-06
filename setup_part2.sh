@@ -55,22 +55,9 @@ class WakeWordDetector:
         self.keyword_paths = keyword_paths
         self.keywords = keywords or ["jarvis"]
         self.sensitivities = sensitivities or [0.5]
-        self.stop_flag = False
-        
-    def cleanup(self):
-        """Cleanup Porcupine resources"""
-        if self.recorder is not None:
-            self.recorder.delete()
-            self.recorder = None
-        if self.porcupine is not None:
-            self.porcupine.delete()
-            self.porcupine = None
-        self.stop_flag = True
-        logging.info("Porcupine resources cleaned up")
         
     def start(self, callback_fn):
         try:
-            self.stop_flag = False
             self.porcupine = pvporcupine.create(
                 access_key=self.access_key,
                 keyword_paths=self.keyword_paths,
@@ -78,41 +65,24 @@ class WakeWordDetector:
                 sensitivities=self.sensitivities
             )
             
-            # First print all devices
-            devices = PvRecorder.get_audio_devices()
-            logging.info(f"Available audio devices: {devices}")
+            self.recorder = PvRecorder(device_index=-1, frame_length=self.porcupine.frame_length)
+            self.recorder.start()
             
-            # Try each device until we find one that works
-            for i, device in enumerate(devices):
-                logging.info(f"Trying device {i}: {device}")
-                try:
-                    self.recorder = PvRecorder(
-                        device_index=i,
-                        frame_length=self.porcupine.frame_length
-                    )
-                    self.recorder.start()
-                    logging.info(f"Successfully initialized device {i}")
-                    break
-                except Exception as e:
-                    logging.warning(f"Failed to initialize device {i}: {e}")
-                    continue
-            
-            if not self.recorder:
-                raise RuntimeError("No working audio device found")
-            
-            while not self.stop_flag:
+            while True:
                 pcm = self.recorder.read()
                 result = self.porcupine.process(pcm)
                 if result >= 0:
                     callback_fn()
-                    break
                     
         except Exception as e:
             logging.error(f"Error in wake word detection: {e}")
             raise
             
         finally:
-            self.cleanup()
+            if self.recorder is not None:
+                self.recorder.delete()
+            if self.porcupine is not None:
+                self.porcupine.delete()
 EOF
 
 # Create main application with all components integrated

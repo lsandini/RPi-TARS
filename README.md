@@ -61,7 +61,7 @@ This creates a fluid, conversational interface that combines the reliability of 
 
 - Raspberry Pi 3B+ or better (for deployment)
 - Tested on Raspberry Pi 4 8GB
-- Raspberry Pi OS Legacy 64-bit (Bullseye)
+- Raspberry Pi OS Legacy 32-bit (Bullseye with desktop)
   Linux rpi4 6.1.21-v8+ #1642 SMP PREEMPT Mon Apr  3 17:24:16 BST 2023 aarch64   
 - USB Microphone or USB Sound Card (Seeedvoice ReSpeaker-2Mic-Pi-HAT)
 - Speakers (JST/USB or 3.5mm audio output)
