@@ -80,7 +80,24 @@ class WakeWordDetector:
             devices = PvRecorder.get_audio_devices()
             logging.info(f"Available audio devices: {devices}")
             
-            self.recorder = PvRecorder(device_index=1, frame_length=self.porcupine.frame_length)
+            # Try to find seeed-2mic-voicecard
+            device_index = None
+            for i, device in enumerate(devices):
+                logging.info(f"Device {i}: {device}")
+                if 'seeed' in device.lower():
+                    device_index = i
+                    break
+            
+            # If not found, use device 1 (which we know works with ALSA)
+            if device_index is None:
+                device_index = 1
+                logging.info(f"Using default device index: {device_index}")
+
+            # Create recorder with just device index and frame length
+            self.recorder = PvRecorder(
+                device_index=device_index,
+                frame_length=self.porcupine.frame_length
+            )
             self.recorder.start()
             
             while not self.stop_flag:
