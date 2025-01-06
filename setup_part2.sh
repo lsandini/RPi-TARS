@@ -41,6 +41,7 @@ class OpenAIHandler:
             return None
 EOF
 
+# Create wake word detector
 cat << 'EOF' > src/speech/wake_word.py
 import pvporcupine
 from pvrecorder import PvRecorder
@@ -54,68 +55,41 @@ class WakeWordDetector:
         self.keyword_paths = keyword_paths
         self.keywords = keywords or ["jarvis"]
         self.sensitivities = sensitivities or [0.5]
-        self.stop_flag = False
-        
-    def cleanup(self):
-        """Cleanup Porcupine resources"""
-        if self.recorder is not None:
-            self.recorder.delete()
-            self.recorder = None
-        if self.porcupine is not None:
-            self.porcupine.delete()
-            self.porcupine = None
-        self.stop_flag = True
-        logging.info("Porcupine resources cleaned up")
         
     def start(self, callback_fn):
         try:
-            self.stop_flag = False
             self.porcupine = pvporcupine.create(
                 access_key=self.access_key,
                 keyword_paths=self.keyword_paths,
                 keywords=self.keywords,
                 sensitivities=self.sensitivities
             )
-            
+
             devices = PvRecorder.get_audio_devices()
             logging.info(f"Available audio devices: {devices}")
+            logging.info(f"Using device index: {device_index} ({devices[device_index]})")
             
-            # Try to find seeed-2mic-voicecard
-            device_index = None
-            for i, device in enumerate(devices):
-                logging.info(f"Device {i}: {device}")
-                if 'seeed' in device.lower():
-                    device_index = i
-                    break
-            
-            # If not found, use device 1 (which we know works with ALSA)
-            if device_index is None:
-                device_index = 1
-                logging.info(f"Using default device index: {device_index}")
-
-            # Create recorder with just device index and frame length
-            self.recorder = PvRecorder(
-                device_index=device_index,
-                frame_length=self.porcupine.frame_length
-            )
+            self.recorder = PvRecorder(device_index=-1, frame_length=self.porcupine.frame_length)
             self.recorder.start()
             
-            while not self.stop_flag:
+            while True:
                 pcm = self.recorder.read()
                 result = self.porcupine.process(pcm)
                 if result >= 0:
                     callback_fn()
-                    break  # Exit after wake word detection
                     
         except Exception as e:
             logging.error(f"Error in wake word detection: {e}")
             raise
             
         finally:
-            self.cleanup()
+            if self.recorder is not None:
+                self.recorder.delete()
+            if self.porcupine is not None:
+                self.porcupine.delete()
 EOF
 
-# Modify the main.py script 
+# Create main application with all components integrated
 cat << 'EOF' > src/main.py
 import os
 import threading
@@ -131,7 +105,7 @@ from enum import Enum
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler("logs/voice_assistant.log"),
@@ -186,13 +160,22 @@ class VoiceAssistant:
         logging.info("Starting voice assistant")
         
         try:
+            if self.wake_word_detector:
+                # Start wake word detection in a separate thread
+                wake_thread = threading.Thread(
+                    target=self.wake_word_detector.start,
+                    args=(self.on_wake_word,)
+                )
+                wake_thread.daemon = True
+                wake_thread.start()
+            
+            # Start in listening mode if no wake word detector
+            else:
+                self.on_wake_word()
+            
+            # Keep the assistant running
             while not self.stop_event.is_set():
-                if self.wake_word_detector:
-                    # Start wake word detection
-                    self.wake_word_detector.start(self.on_wake_word)
-                    time.sleep(1)  # Small delay before restarting wake word detection
-                else:
-                    self.on_wake_word()
+                time.sleep(1)
                 
         except Exception as e:
             logging.error(f"Error in assistant main loop: {e}")
@@ -212,28 +195,7 @@ class VoiceAssistant:
         """Callback for wake word detection."""
         logging.info("Wake word detected!")
         self.state = AssistantState.LISTENING
-        
-        # Cleanup wake word detector resources
-        if self.wake_word_detector:
-            self.wake_word_detector.cleanup()
-        
-        # Wake word responses are predefined
-        wake_responses = [
-            "Yes?", 
-            "How can I help you?", 
-            "I'm listening.", 
-            "What can I do for you?"
-        ]
-        import random
-        response = random.choice(wake_responses)
-        
-        # Log the wake word response
-        logging.info(f"WAKE WORD RESPONSE: {response}")
-        
-        # Speak the response
-        self.tts_engine.synthesize_speech(response)
-        
-        # Start speech recognition
+        self.speak("Yes?")
         self.stt_engine.start_recognition(callback_fn=self.process_command)
 
     def process_command(self, text):
@@ -241,9 +203,6 @@ class VoiceAssistant:
         try:
             self.state = AssistantState.PROCESSING
             text = text.lower().strip()
-            
-            # Log what Vosk heard
-            logging.info(f"YOU SAID: {text}")
             
             # Prevent repeated processing of the same text
             if not hasattr(self, '_last_processed_text'):
@@ -255,32 +214,32 @@ class VoiceAssistant:
             self._last_processed_text = text
             
             # Handle commands
-            if "hello" in text or "hi" in text:
-                response = "Hello! How can I help you?"
+            if "hello" in text:
+                self.speak("Hello! How can I help you?")
             elif "time" in text:
                 current_time = datetime.now().strftime("%I:%M %p")
-                response = f"The current time is {current_time}"
+                self.speak(f"The current time is {current_time}")
             elif "goodbye" in text or "bye" in text:
-                response = "Goodbye! Have a great day."
-                self.tts_engine.synthesize_speech(response)
+                self.speak("Goodbye! Have a great day.")
                 self.stop()
-                return
             else:
                 # Process with AI
                 response = self.ai_handler.process_text(text)
-                response = response if response else f"I heard: {text}"
-            
-            # Log OpenAI's response
-            logging.info(f"OPENAI REPLIED: {response}")
-            
-            # Speak the response
-            self.tts_engine.synthesize_speech(response)
-                    
+                self.speak(response if response else f"You said: {text}")
+                
         except Exception as e:
             logging.error(f"Error processing command: {e}")
             self.state = AssistantState.ERROR
-            self.tts_engine.synthesize_speech("Sorry, I encountered an error processing your request.")
+            self.speak("Sorry, I encountered an error processing your request.")
             
+        finally:
+            self.state = AssistantState.IDLE
+
+    def speak(self, text):
+        """Wrapper for TTS with state management."""
+        try:
+            self.state = AssistantState.SPEAKING
+            self.tts_engine.synthesize_speech(text)
         finally:
             self.state = AssistantState.IDLE
 
