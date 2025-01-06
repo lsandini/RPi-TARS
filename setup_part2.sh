@@ -69,10 +69,6 @@ class WakeWordDetector:
             
             # Detailed device logging
             devices = sd.query_devices()
-            for i, dev in enumerate(devices):
-                logging.info(f"Device {i}: {dev}")
-            
-            # Find input devices with active channels
             input_devices = [
                 i for i, dev in enumerate(devices) 
                 if dev['max_input_channels'] > 0
@@ -80,11 +76,10 @@ class WakeWordDetector:
             
             logging.info(f"Available input devices: {input_devices}")
             
-            # Try specific known working device indices
-            device_indices = input_devices + [4, 8, 10, 12]
-            
-            for device_index in device_indices:
+            # Try direct device initialization with more detailed error logging
+            for device_index in input_devices:
                 try:
+                    logging.info(f"Attempting to use device {device_index}: {devices[device_index]}")
                     self.recorder = PvRecorder(
                         device_index=device_index, 
                         frame_length=self.porcupine.frame_length
@@ -92,8 +87,8 @@ class WakeWordDetector:
                     self.recorder.start()
                     logging.info(f"Successfully initialized device {device_index}")
                     break
-                except Exception as e:
-                    logging.warning(f"Device {device_index} initialization failed: {e}")
+                except Exception as detailed_error:
+                    logging.warning(f"Detailed device {device_index} error: {detailed_error}")
             
             if not self.recorder:
                 raise RuntimeError("No suitable audio input device found")
