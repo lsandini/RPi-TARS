@@ -68,7 +68,7 @@ This creates a fluid, conversational interface that combines the reliability of 
 - Internet connection
 - For SeeedVoice ReSpeaker 2-MICS Pi HAT, use these installation instructions:  
   [https://github.com/HinTak/seeed-voicecard](https://github.com/HinTak/seeed-voicecard)
-- For Raspberry Pi OS 32/64-bit (Bookworm): there are issues with the Seeedvoice driver installation, I couldn't get the microphones to work !
+- For Raspberry Pi OS 64-bit (Bookworm): there are issues with the Seeedvoice driver installation, I couldn't get the microphones to work !
 
 ### API Keys Required
 - OpenAI API Key

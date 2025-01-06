@@ -77,7 +77,10 @@ class WakeWordDetector:
                 sensitivities=self.sensitivities
             )
             
-            self.recorder = PvRecorder(device_index=-1, frame_length=self.porcupine.frame_length)
+            devices = PvRecorder.get_audio_devices()
+            logging.info(f"Available audio devices: {devices}")
+            
+            self.recorder = PvRecorder(device_index=1, frame_length=self.porcupine.frame_length)
             self.recorder.start()
             
             while not self.stop_flag:
