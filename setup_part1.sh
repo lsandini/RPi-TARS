@@ -136,7 +136,7 @@ anthropic==0.3.0
 google-cloud-texttospeech==2.14.1
 python-dotenv==1.0.0
 sounddevice==0.4.6
-numpy==1.24.3
+numpy==1.23.5
 pytest==7.4.0
 
 # OpenAI dependencies
