@@ -8,6 +8,7 @@
 !setup_part3.sh
 !deploy.sh
 !README.md
+!setup.sh
 
 # Even if they are in subdirectories
 !*/
