@@ -45,6 +45,7 @@ EOF
 cat << 'EOF' > src/speech/wake_word.py
 import pvporcupine
 from pvrecorder import PvRecorder
+import sounddevice as sd
 import logging
 
 class WakeWordDetector:
@@ -58,6 +59,7 @@ class WakeWordDetector:
         
     def start(self, callback_fn):
         try:
+            # Create Porcupine instance
             self.porcupine = pvporcupine.create(
                 access_key=self.access_key,
                 keyword_paths=self.keyword_paths,
@@ -65,14 +67,38 @@ class WakeWordDetector:
                 sensitivities=self.sensitivities
             )
             
-            self.recorder = PvRecorder(device_index=-1, frame_length=self.porcupine.frame_length)
-            self.recorder.start()
+            # Find input devices
+            input_devices = [
+                i for i, dev in enumerate(sd.query_devices()) 
+                if dev['max_input_channels'] > 0
+            ]
             
+            logging.info(f"Available input devices: {input_devices}")
+            
+            # Try devices until successful
+            for device_index in input_devices:
+                try:
+                    self.recorder = PvRecorder(
+                        device_index=device_index, 
+                        frame_length=self.porcupine.frame_length
+                    )
+                    self.recorder.start()
+                    logging.info(f"Using device index {device_index}")
+                    break
+                except Exception as e:
+                    logging.warning(f"Could not use device {device_index}: {e}")
+            
+            if not self.recorder:
+                raise RuntimeError("No suitable audio input device found")
+            
+            # Wake word detection loop
             while True:
                 pcm = self.recorder.read()
                 result = self.porcupine.process(pcm)
                 if result >= 0:
+                    logging.info("Wake word detected!")
                     callback_fn()
+                    break
                     
         except Exception as e:
             logging.error(f"Error in wake word detection: {e}")
