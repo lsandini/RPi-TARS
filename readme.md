@@ -7,7 +7,7 @@ TARS is an advanced voice-activated AI assistant that leverages multiple cutting
 ## Key Features
 
 - Wake word detection using Porcupine
-- Speech recognition with Vosk
+- Speech recognition using Google Speech Recognition
 - AI responses powered by OpenAI
 - Text-to-speech output using Google Cloud Text-to-Speech
 - Continuous conversation mode
@@ -18,10 +18,11 @@ TARS is an advanced voice-activated AI assistant that leverages multiple cutting
 ### Hardware Requirements
 - Microphone input device
 - Speaker or audio output device
+- Raspberry Pi 4 (recommended)
 
 ### Software Requirements
 - Python 3.8+
-- Linux operating system (tested on Ubuntu)
+- Linux operating system (tested on Ubuntu/Raspbian)
 
 ## Installation
 
@@ -34,14 +35,18 @@ cd tars-assistant
 ### 2. Install System Dependencies
 For Ubuntu/Debian:
 ```bash
+# Update package lists
 sudo apt-get update
+
+# Install audio and speech recognition dependencies
 sudo apt-get install -y \
     python3-pip \
     portaudio19-dev \
     python3-pyaudio \
     python3-dev \
     libportaudio2 \
-    libasound2-dev
+    libasound2-dev \
+    flac
 ```
 
 ### 3. Install Python Dependencies
@@ -49,15 +54,7 @@ sudo apt-get install -y \
 pip3 install -r requirements.txt
 ```
 
-### 4. Download Vosk Model
-```bash
-# Download Small Version
-wget https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
-unzip vosk-model-small-en-us-0.15.zip
-mv vosk-model-small-en-us-0.15 vosk-model
-```
-
-### 5. Set Up API Keys
+### 4. Set Up API Keys
 
 Create a `.env` file in the project root with the following keys:
 ```
@@ -88,9 +85,9 @@ GOOGLE_APPLICATION_CREDENTIALS=google-service-account.json
 ### Configuration
 
 #### Audio Device Index
-You may need to adjust the `input_device_index` in the code to match your system's audio input device. Use the following command to list audio devices:
+You may need to adjust the audio device index in the code. Use the following command to list audio devices:
 ```bash
-python3 -c "import pyaudio; p = pyaudio.PyAudio(); print('\n'.join([f'{i}: {p.get_device_info_by_index(i)['name']}' for i in range(p.get_device_count())]))"
+python3 -c "import speech_recognition as sr; print('\n'.join([f'{index}: {name}' for index, name in enumerate(sr.Microphone.list_microphone_names())]))"
 ```
 
 ## Running the Assistant
@@ -109,7 +106,7 @@ chmod +x run.sh
 ## Dependencies
 
 - pvporcupine: Wake word detection
-- vosk: Speech recognition
+- SpeechRecognition: Speech recognition
 - pyaudio: Audio input/output
 - openai: AI response generation
 - python-dotenv: Environment variable management
@@ -120,6 +117,7 @@ chmod +x run.sh
 - Ensure all API keys are correctly set
 - Check microphone permissions
 - Verify audio device index
+- Confirm internet connection for speech recognition
 - Make sure all dependencies are installed
 
 ## Limitations
@@ -128,6 +126,7 @@ chmod +x run.sh
 - Performance depends on microphone quality
 - Limited to English language
 - Conversation has a 5-command or 10-second timeout
+- Uses Google's free speech recognition service with usage limits
 
 ## Contributing
 
@@ -141,5 +140,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 - Picovoice for Porcupine wake word engine
 - OpenAI for language model
-- Vosk for speech recognition
-- Google Cloud for Text-to-Speech
+- Google for Speech Recognition and Text-to-Speech
