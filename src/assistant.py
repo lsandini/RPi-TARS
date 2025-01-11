@@ -37,12 +37,10 @@ class TARS:
 
         # Funny wake word responses
         self.wake_word_responses = [
-            "Huh?",
+            "Huuh?",
             "Did you say something?",
             "Hmm?",
-            "Yes?",
-            "I'm listening...",
-            "What's up?",
+            "Yes?",,
             "At your service!"
         ]
 
@@ -104,6 +102,7 @@ class TARS:
         text = ""
         start_time = time.time()
         accumulated_data = b''
+        partial_results = []
         
         try:
             while time.time() - start_time < 10:  # 10-second listening window
@@ -112,27 +111,35 @@ class TARS:
                 
                 # Process data in chunks
                 if len(accumulated_data) >= 32768:  # Process in larger chunks
-                    result_json = self.vosk_rec.AcceptWaveform(accumulated_data)
-                    if result_json:
+                    if self.vosk_rec.AcceptWaveform(accumulated_data):
                         result = json.loads(self.vosk_rec.Result())
                         if result["text"]:
-                            text = result["text"]
-                            break
+                            partial_results.append(result["text"])
                     accumulated_data = b''  # Reset accumulator
+                
+                # Check for partial result
+                partial_result = self.vosk_rec.PartialResult()
+                if partial_result:
+                    partial_dict = json.loads(partial_result)
+                    if partial_dict.get("partial"):
+                        print(f"Partial result: {partial_dict['partial']}")
                     
-            # Process any remaining data if no text found
-            if not text and accumulated_data:
-                result_json = self.vosk_rec.AcceptWaveform(accumulated_data)
-                if result_json:
-                    result = json.loads(self.vosk_rec.Result())
-                    if result["text"]:
-                        text = result["text"]
-                    
+            # Process final result
+            if self.vosk_rec.AcceptWaveform(accumulated_data):
+                final_result = json.loads(self.vosk_rec.Result())
+                if final_result["text"]:
+                    partial_results.append(final_result["text"])
+            
+            # Combine partial results
+            text = " ".join(partial_results).strip()
+            
+            print(f"Debug - Full recognition results: {partial_results}")
+
         finally:
             vosk_stream.stop_stream()
             vosk_stream.close()
             
-        return text.lower().strip()
+        return text.lower()
 
     def conversation_mode(self):
         print("Entering conversation mode...")
