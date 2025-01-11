@@ -6,6 +6,7 @@ import struct
 import vosk
 import json
 import time
+import random
 from openai import OpenAI
 from google.cloud import texttospeech
 
@@ -33,6 +34,17 @@ class TARS:
 
         # Initialize Google TTS
         self.tts_client = texttospeech.TextToSpeechClient()
+
+        # Funny wake word responses
+        self.wake_word_responses = [
+            "Huh?",
+            "Did you say something?",
+            "Hmm?",
+            "Yes?",
+            "I'm listening...",
+            "What's up?",
+            "At your service!"
+        ]
 
     def get_ai_response(self, text):
         try:
@@ -173,6 +185,11 @@ class TARS:
                 if self.porcupine.process(pcm) >= 0:
                     print("Wake word detected! Starting conversation mode...")
                     
+                    # Randomly choose and speak a wake word response
+                    wake_response = random.choice(self.wake_word_responses)
+                    print(f"TARS: {wake_response}")
+                    self.speak_response(wake_response)
+                    
                     # Temporarily stop wake word detection
                     porcupine_stream.stop_stream()
                     
@@ -190,3 +207,10 @@ class TARS:
             porcupine_stream.close()
             self.pa.terminate()
             self.porcupine.delete()
+
+def main():
+    tars = TARS()
+    tars.run()
+
+if __name__ == '__main__':
+    main()
