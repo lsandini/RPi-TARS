@@ -1,12 +1,12 @@
 import os
-import vosk
-import json
+from dotenv import load_dotenv
+import pvporcupine
 import pyaudio
 import struct
-import random
-import pvporcupine
+import vosk
+import json
 import time
-from dotenv import load_dotenv
+import random
 from openai import OpenAI
 from google.cloud import texttospeech
 
@@ -18,9 +18,6 @@ class TARS:
         # Initialize PyAudio
         self.pa = pyaudio.PyAudio()
         
-        # Identify correct audio input device
-        self.input_device_index = self._find_input_device()
-        
         # Initialize Porcupine with Jarvis wake word
         self.porcupine = pvporcupine.create(
             access_key=os.getenv('PICOVOICE_KEY'),
@@ -30,6 +27,7 @@ class TARS:
         # Initialize Vosk
         vosk.SetLogLevel(-1)
         self.vosk_model = vosk.Model("vosk-model")
+        self.vosk_rec = vosk.KaldiRecognizer(self.vosk_model, 16000)
 
         # Initialize OpenAI
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -39,27 +37,12 @@ class TARS:
 
         # Funny wake word responses
         self.wake_word_responses = [
-            "Huh?",
+            "Huuh?",
             "Did you say something?",
             "Hmm?",
             "Yes?",
-            "I'm listening...",
-            "What's up?",
             "At your service!"
         ]
-
-    def _find_input_device(self):
-        """Find a suitable input device with the right specifications."""
-        for i in range(self.pa.get_device_count()):
-            dev = self.pa.get_device_info_by_index(i)
-            print(f"Device {i}: {dev['name']} - Channels: {dev['maxInputChannels']}")
-            
-            # Look for a device with exactly 1 input channel
-            if dev['maxInputChannels'] == 1:
-                return i
-        
-        # Fallback to default
-        return 0
 
     def get_ai_response(self, text):
         try:
@@ -97,56 +80,98 @@ class TARS:
             # Save and play response
             with open("response.wav", "wb") as out:
                 out.write(response.audio_content)
-            os.system(f'aplay response.wav')
+            os.system(f'aplay -D plughw:3,0 response.wav')
 
         except Exception as e:
             print(f"TTS Error: {e}")
             print(f"TARS: {text}")
 
-    def conversation_mode(self):
-        print("Entering conversation mode...")
-        
-        # Create a new recognizer for conversation mode
-        recognizer = vosk.KaldiRecognizer(self.vosk_model, 16000)
-        
-        # Open audio stream
-        stream = self.pa.open(
-            rate=16000,
-            channels=1,
-            format=pyaudio.paInt16,
-            input=True,
-            frames_per_buffer=8192,
-            input_device_index=self.input_device_index
-        )
-
+    def _listen_for_command(self):
         print("Listening for your command...")
         
+        # Create new stream for Vosk with larger buffer
+        vosk_stream = self.pa.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=16000,
+            input=True,
+            frames_per_buffer=8192,
+            input_device_index=8
+        )
+        
+        text = ""
+        start_time = time.time()
+        accumulated_data = b''
+        partial_results = []
+        
         try:
-            while True:
-                data = stream.read(4096)
-                if recognizer.AcceptWaveform(data):
-                    result = json.loads(recognizer.Result())
-                    command = result.get("text", "").strip()
+            while time.time() - start_time < 10:  # 10-second listening window
+                data = vosk_stream.read(8192, exception_on_overflow=False)
+                accumulated_data += data
+                
+                # Process data in chunks
+                if len(accumulated_data) >= 32768:  # Process in larger chunks
+                    if self.vosk_rec.AcceptWaveform(accumulated_data):
+                        result = json.loads(self.vosk_rec.Result())
+                        if result["text"]:
+                            partial_results.append(result["text"])
+                    accumulated_data = b''  # Reset accumulator
+                
+                # Check for partial result
+                partial_result = self.vosk_rec.PartialResult()
+                if partial_result:
+                    partial_dict = json.loads(partial_result)
+                    if partial_dict.get("partial"):
+                        print(f"Partial result: {partial_dict['partial']}")
                     
-                    if command:
-                        print(f"You said: {command}")
-                        
-                        # Check for end of conversation
-                        if any(word in command.lower() for word in ["thank you", "goodbye", "thanks"]):
-                            print("Ending conversation mode.")
-                            break
-                        
-                        # Get and speak AI response
-                        ai_response = self.get_ai_response(command)
-                        print(f"TARS: {ai_response}")
-                        self.speak_response(ai_response)
-        
-        except KeyboardInterrupt:
-            print("Conversation mode interrupted.")
-        
+            # Process final result
+            if self.vosk_rec.AcceptWaveform(accumulated_data):
+                final_result = json.loads(self.vosk_rec.Result())
+                if final_result["text"]:
+                    partial_results.append(final_result["text"])
+            
+            # Combine partial results
+            text = " ".join(partial_results).strip()
+            
+            print(f"Debug - Full recognition results: {partial_results}")
+
         finally:
-            stream.stop_stream()
-            stream.close()
+            vosk_stream.stop_stream()
+            vosk_stream.close()
+            
+        return text.lower()
+
+    def conversation_mode(self):
+        print("Entering conversation mode...")
+        commands_count = 0
+        last_command_time = time.time()
+        
+        while True:
+            if commands_count >= 5:
+                print("Conversation limit reached. Going back to wake word mode.")
+                break
+                
+            if time.time() - last_command_time > 10:
+                print("Conversation timeout. Going back to wake word mode.")
+                break
+            
+            command = self._listen_for_command()
+            
+            if command:
+                print(f"You said: {command}")
+                
+                # Get and speak AI response
+                if not any(word in command for word in ["thank you", "goodbye", "thanks"]):
+                    ai_response = self.get_ai_response(command)
+                    print(f"TARS: {ai_response}")
+                    self.speak_response(ai_response)
+                
+                last_command_time = time.time()
+                commands_count += 1
+                
+                if any(word in command for word in ["thank you", "goodbye", "thanks"]):
+                    print("Ending conversation mode.")
+                    break
 
     def run(self):
         # Set up initial audio stream for Porcupine
@@ -156,7 +181,7 @@ class TARS:
             rate=16000,
             input=True,
             frames_per_buffer=512,
-            input_device_index=self.input_device_index
+            input_device_index=8
         )
         
         try:
@@ -175,7 +200,7 @@ class TARS:
                     print(f"TARS: {wake_response}")
                     self.speak_response(wake_response)
                     
-                    # Pause wake word detection
+                    # Temporarily stop wake word detection
                     porcupine_stream.stop_stream()
                     
                     # Enter conversation mode
@@ -197,5 +222,5 @@ def main():
     tars = TARS()
     tars.run()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
