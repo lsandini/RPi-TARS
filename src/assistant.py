@@ -36,17 +36,25 @@ class TARS:
 
         # Funny wake word responses
         self.wake_word_responses = [
-            "Huh?",
+            "Huuh?",
             "Did you say something?",
             "Hmm?",
             "Yes?",
-            "I'm listening...",
-            "What's up?",
             "At your service!"
         ]
 
         # Audio device configuration
-        self.input_device_index = 8  # Adjust as needed
+        self.input_device_index = self._find_input_device()
+
+    def _find_input_device(self):
+        """Automatically find a suitable input device."""
+        for i in range(self.pa.get_device_count()):
+            dev = self.pa.get_device_info_by_index(i)
+            if dev['maxInputChannels'] > 0:
+                print(f"Potential input device: {i} - {dev['name']}")
+        
+        # Default to 0 if no specific device found
+        return 0
 
     def get_ai_response(self, text):
         try:
@@ -84,7 +92,7 @@ class TARS:
             # Save and play response
             with open("response.wav", "wb") as out:
                 out.write(response.audio_content)
-            os.system(f'aplay -D plughw:3,0 response.wav')
+            os.system(f'aplay response.wav')
 
         except Exception as e:
             print(f"TTS Error: {e}")
@@ -96,21 +104,30 @@ class TARS:
         # Create a new recognizer for conversation mode
         recognizer = vosk.KaldiRecognizer(self.vosk_model, 16000)
         
-        # Open audio stream
-        stream = self.pa.open(
-            rate=16000,
-            channels=1,
-            format=pyaudio.paInt16,
-            input=True,
-            frames_per_buffer=8192,
-            input_device_index=self.input_device_index
-        )
+        # Open audio stream with extensive error handling
+        try:
+            stream = self.pa.open(
+                rate=16000,
+                channels=1,
+                format=pyaudio.paInt16,
+                input=True,
+                frames_per_buffer=8192,
+                input_device_index=self.input_device_index
+            )
+        except Exception as e:
+            print(f"Error opening audio stream: {e}")
+            return
 
         print("Listening for your command...")
         
         try:
             while True:
-                data = stream.read(4096)
+                try:
+                    data = stream.read(4096)
+                except IOError as e:
+                    print(f"Error reading stream: {e}")
+                    break
+
                 if recognizer.AcceptWaveform(data):
                     result = json.loads(recognizer.Result())
                     command = result.get("text", "").strip()
@@ -132,19 +149,30 @@ class TARS:
             print("Conversation mode interrupted.")
         
         finally:
-            stream.stop_stream()
-            stream.close()
+            # Ensure stream is closed even if an error occurs
+            if 'stream' in locals():
+                stream.stop_stream()
+                stream.close()
 
     def run(self):
+        # Validate PyAudio and device
+        if self.pa.get_device_count() == 0:
+            print("No audio devices found!")
+            return
+
         # Set up initial audio stream for Porcupine
-        porcupine_stream = self.pa.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=16000,
-            input=True,
-            frames_per_buffer=512,
-            input_device_index=self.input_device_index
-        )
+        try:
+            porcupine_stream = self.pa.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=16000,
+                input=True,
+                frames_per_buffer=512,
+                input_device_index=self.input_device_index
+            )
+        except Exception as e:
+            print(f"Error setting up Porcupine stream: {e}")
+            return
         
         try:
             print("Listening for wake word 'Jarvis'...")
