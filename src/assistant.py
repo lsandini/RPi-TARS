@@ -1,5 +1,4 @@
 import os
-import argparse
 from dotenv import load_dotenv
 import pvporcupine
 import pyaudio
@@ -11,7 +10,7 @@ from openai import OpenAI
 from google.cloud import texttospeech
 
 class TARS:
-    def __init__(self, model_version='22'):
+    def __init__(self):
         # Load environment variables
         load_dotenv()
         
@@ -24,27 +23,9 @@ class TARS:
             keywords=['jarvis']
         )
         
-        # Initialize Vosk with selected model
+        # Initialize Vosk
         vosk.SetLogLevel(-1)
-        
-        # Determine model path based on version
-        if model_version == '15':
-            model_path = "vosk-model-15"
-        elif model_version == '22':
-            model_path = "vosk-model-22"
-        else:
-            raise ValueError(f"Invalid model version: {model_version}. Choose '15' or '22'.")
-        
-        # Construct full model path
-        full_model_path = os.path.join(os.getcwd(), model_path)
-        
-        # Validate model exists
-        if not os.path.exists(full_model_path):
-            raise FileNotFoundError(f"Vosk model not found at {full_model_path}. "
-                                    f"Ensure you have downloaded the {model_version} model.")
-        
-        # Initialize Vosk model
-        self.vosk_model = vosk.Model(full_model_path)
+        self.vosk_model = vosk.Model("vosk-model")
         self.vosk_rec = vosk.KaldiRecognizer(self.vosk_model, 16000)
 
         # Initialize OpenAI
@@ -209,24 +190,3 @@ class TARS:
             porcupine_stream.close()
             self.pa.terminate()
             self.porcupine.delete()
-
-def main():
-    # Set up argument parser
-    parser = argparse.ArgumentParser(description='TARS Voice Assistant')
-    parser.add_argument(
-        '-m', 
-        '--model', 
-        choices=['15', '22'], 
-        default='22', 
-        help='Vosk speech recognition model version (default: 22)'
-    )
-    
-    # Parse arguments
-    args = parser.parse_args()
-    
-    # Initialize and run TARS with selected model
-    tars = TARS(model_version=args.model)
-    tars.run()
-
-if __name__ == '__main__':
-    main()
