@@ -40,10 +40,8 @@ class TARS:
         # Funny wake word responses
         self.wake_word_responses = [
             "Huuh?",
-            "Did you say something?",
             "Hmm?",
-            "Yes?",
-            "At your service!"
+            "Yes Boss?"
         ]
 
     def get_ai_response(self, text):
