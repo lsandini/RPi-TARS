@@ -89,7 +89,7 @@ class TARS:
             print(f"TARS: {text}")
 
     def _listen_for_command(self):
-        print("Listening...")
+        print("Listening for your command...")
         
         # Create new stream for Vosk with larger buffer
         vosk_stream = self.pa.open(
@@ -106,22 +106,24 @@ class TARS:
         accumulated_data = b''
         
         try:
-            while time.time() - start_time < 10:
+            while time.time() - start_time < 10:  # 10-second listening window
                 data = vosk_stream.read(8192, exception_on_overflow=False)
                 accumulated_data += data
                 
-                # Process accumulated data when we have enough
+                # Process data in chunks
                 if len(accumulated_data) >= 32768:  # Process in larger chunks
-                    if self.vosk_rec.AcceptWaveform(accumulated_data):
+                    result_json = self.vosk_rec.AcceptWaveform(accumulated_data)
+                    if result_json:
                         result = json.loads(self.vosk_rec.Result())
                         if result["text"]:
                             text = result["text"]
                             break
                     accumulated_data = b''  # Reset accumulator
                     
-            # Process any remaining data
-            if accumulated_data and not text:
-                if self.vosk_rec.AcceptWaveform(accumulated_data):
+            # Process any remaining data if no text found
+            if not text and accumulated_data:
+                result_json = self.vosk_rec.AcceptWaveform(accumulated_data)
+                if result_json:
                     result = json.loads(self.vosk_rec.Result())
                     if result["text"]:
                         text = result["text"]
@@ -130,9 +132,10 @@ class TARS:
             vosk_stream.stop_stream()
             vosk_stream.close()
             
-        return text.lower()
+        return text.lower().strip()
 
     def conversation_mode(self):
+        print("Entering conversation mode...")
         commands_count = 0
         last_command_time = time.time()
         
