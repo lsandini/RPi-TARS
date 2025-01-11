@@ -37,12 +37,17 @@ class TARS:
 
         # Funny wake word responses
         self.wake_word_responses = [
-            "Huuh?",
+            "Huh?",
             "Did you say something?",
             "Hmm?",
             "Yes?",
+            "I'm listening...",
+            "What's up?",
             "At your service!"
         ]
+
+        # Audio device configuration
+        self.input_device_index = 8  # You may need to adjust this
 
     def get_ai_response(self, text):
         try:
@@ -89,57 +94,44 @@ class TARS:
     def _listen_for_command(self):
         print("Listening for your command...")
         
-        # Create new stream for Vosk with larger buffer
+        # Create new stream specifically for Vosk
         vosk_stream = self.pa.open(
             format=pyaudio.paInt16,
             channels=1,
             rate=16000,
             input=True,
-            frames_per_buffer=8192,
-            input_device_index=8
+            frames_per_buffer=4096,  # Smaller buffer
+            input_device_index=self.input_device_index
         )
         
         text = ""
         start_time = time.time()
-        accumulated_data = b''
-        partial_results = []
+        self.vosk_rec = vosk.KaldiRecognizer(self.vosk_model, 16000)
         
         try:
-            while time.time() - start_time < 10:  # 10-second listening window
-                data = vosk_stream.read(8192, exception_on_overflow=False)
-                accumulated_data += data
+            while time.time() - start_time < 5:  # Reduced listening time
+                data = vosk_stream.read(4096, exception_on_overflow=False)
                 
-                # Process data in chunks
-                if len(accumulated_data) >= 32768:  # Process in larger chunks
-                    if self.vosk_rec.AcceptWaveform(accumulated_data):
-                        result = json.loads(self.vosk_rec.Result())
-                        if result["text"]:
-                            partial_results.append(result["text"])
-                    accumulated_data = b''  # Reset accumulator
+                # Process audio in real-time
+                if self.vosk_rec.AcceptWaveform(data):
+                    result = json.loads(self.vosk_rec.Result())
+                    if result["text"]:
+                        text = result["text"]
+                        break
                 
-                # Check for partial result
-                partial_result = self.vosk_rec.PartialResult()
-                if partial_result:
-                    partial_dict = json.loads(partial_result)
-                    if partial_dict.get("partial"):
-                        print(f"Partial result: {partial_dict['partial']}")
-                    
-            # Process final result
-            if self.vosk_rec.AcceptWaveform(accumulated_data):
-                final_result = json.loads(self.vosk_rec.Result())
-                if final_result["text"]:
-                    partial_results.append(final_result["text"])
-            
-            # Combine partial results
-            text = " ".join(partial_results).strip()
-            
-            print(f"Debug - Full recognition results: {partial_results}")
-
+                # Optional: print partial results
+                partial = json.loads(self.vosk_rec.PartialResult())
+                if partial.get("partial"):
+                    print(f"Partial: {partial['partial']}")
+        
+        except Exception as e:
+            print(f"Listening error: {e}")
+        
         finally:
             vosk_stream.stop_stream()
             vosk_stream.close()
             
-        return text.lower()
+        return text.lower().strip()
 
     def conversation_mode(self):
         print("Entering conversation mode...")
@@ -181,7 +173,7 @@ class TARS:
             rate=16000,
             input=True,
             frames_per_buffer=512,
-            input_device_index=8
+            input_device_index=self.input_device_index
         )
         
         try:
