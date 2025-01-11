@@ -1,0 +1,46 @@
+# Environment files
+.env
+*.env
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+.venv/
+.env/
+
+# Vosk model
+vosk-model/
+vosk-model-*
+
+# Google service account credentials
+google-service-account.json
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Backup files
+*.bak
+*.swp
+*~
+
+# Dependency directories
+node_modules/
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace

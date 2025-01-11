@@ -1,0 +1,6 @@
+pvporcupine
+vosk
+pyaudio
+openai
+python-dotenv
+google-cloud-texttospeech
