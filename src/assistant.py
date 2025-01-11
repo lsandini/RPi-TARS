@@ -3,10 +3,9 @@ from dotenv import load_dotenv
 import pvporcupine
 import pyaudio
 import struct
-import vosk
-import json
-import time
 import random
+import time
+import speech_recognition as sr
 from openai import OpenAI
 from google.cloud import texttospeech
 
@@ -24,10 +23,13 @@ class TARS:
             keywords=['jarvis']
         )
         
-        # Initialize Vosk
-        vosk.SetLogLevel(-1)
-        self.vosk_model = vosk.Model("vosk-model")
-        self.vosk_rec = vosk.KaldiRecognizer(self.vosk_model, 16000)
+        # Initialize Speech Recognizer
+        self.recognizer = sr.Recognizer()
+        
+        # Adjust for ambient noise
+        with sr.Microphone(device_index=8) as source:
+            print("Calibrating ambient noise... Please wait.")
+            self.recognizer.adjust_for_ambient_noise(source, duration=1)
 
         # Initialize OpenAI
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -89,57 +91,28 @@ class TARS:
     def _listen_for_command(self):
         print("Listening for your command...")
         
-        # Create new stream for Vosk with larger buffer
-        vosk_stream = self.pa.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=16000,
-            input=True,
-            frames_per_buffer=8192,
-            input_device_index=8
-        )
-        
-        text = ""
-        start_time = time.time()
-        accumulated_data = b''
-        partial_results = []
-        
         try:
-            while time.time() - start_time < 10:  # 10-second listening window
-                data = vosk_stream.read(8192, exception_on_overflow=False)
-                accumulated_data += data
+            # Use microphone as source
+            with sr.Microphone(device_index=8) as source:
+                # Listen with a timeout and adjust for ambient noise
+                audio = self.recognizer.listen(source, timeout=5)
                 
-                # Process data in chunks
-                if len(accumulated_data) >= 32768:  # Process in larger chunks
-                    if self.vosk_rec.AcceptWaveform(accumulated_data):
-                        result = json.loads(self.vosk_rec.Result())
-                        if result["text"]:
-                            partial_results.append(result["text"])
-                    accumulated_data = b''  # Reset accumulator
+                try:
+                    # Use Google Speech Recognition
+                    text = self.recognizer.recognize_google(audio)
+                    print(f"You said: {text}")
+                    return text.lower()
                 
-                # Check for partial result
-                partial_result = self.vosk_rec.PartialResult()
-                if partial_result:
-                    partial_dict = json.loads(partial_result)
-                    if partial_dict.get("partial"):
-                        print(f"Partial result: {partial_dict['partial']}")
-                    
-            # Process final result
-            if self.vosk_rec.AcceptWaveform(accumulated_data):
-                final_result = json.loads(self.vosk_rec.Result())
-                if final_result["text"]:
-                    partial_results.append(final_result["text"])
-            
-            # Combine partial results
-            text = " ".join(partial_results).strip()
-            
-            print(f"Debug - Full recognition results: {partial_results}")
-
-        finally:
-            vosk_stream.stop_stream()
-            vosk_stream.close()
-            
-        return text.lower()
+                except sr.UnknownValueError:
+                    print("Could not understand audio")
+                    return ""
+                except sr.RequestError as e:
+                    print(f"Could not request results; {e}")
+                    return ""
+        
+        except Exception as e:
+            print(f"Listening error: {e}")
+            return ""
 
     def conversation_mode(self):
         print("Entering conversation mode...")
