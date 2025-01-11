@@ -32,8 +32,6 @@ cd tars-assistant
 ```
 
 ### 2. Install System Dependencies
-Before installing Python dependencies, you may need to install some system packages:
-
 For Ubuntu/Debian:
 ```bash
 sudo apt-get update
@@ -46,56 +44,18 @@ sudo apt-get install -y \
     libasound2-dev
 ```
 
-For Fedora/RHEL:
-```bash
-sudo dnf install -y \
-    python3-pip \
-    portaudio-devel \
-    python3-pyaudio \
-    alsa-lib-devel
-```
-
 ### 3. Install Python Dependencies
 ```bash
 pip3 install -r requirements.txt
 ```
 
-**Note:** If you encounter permission issues, use `pip3 install --user -r requirements.txt`
-
-### 4. Download Required Models
-
-#### Vosk Model
-1. Download Vosk speech recognition models:
-   ```bash
-   # Full Version 22 (Recommended, Default)
-   wget https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip
-   unzip vosk-model-en-us-0.22.zip
-   mv vosk-model-en-us-0.22 vosk-model-22
-
-   # Small Version (Lightweight Alternative)
-   wget https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
-   unzip vosk-model-small-en-us-0.15.zip
-   mv vosk-model-small-en-us-0.15 vosk-model-15
-   ```
-
-2. Ensure you have two model directories:
-   - `vosk-model-22/` for full version 0.22 (recommended)
-   - `vosk-model-15/` for small version
-
-### Running with Different Models
-
+### 4. Download Vosk Model
 ```bash
-# Use Version 22 (default)
-python3 src/main.py
-
-# Use Small Version
-python3 src/main.py -m 15
+# Download Small Version
+wget https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
+unzip vosk-model-small-en-us-0.15.zip
+mv vosk-model-small-en-us-0.15 vosk-model
 ```
-
-**Note:** 
-- The full version (0.22) provides better accuracy
-- The small version (0.15) is more lightweight and faster
-- Make sure to download and place both model versions in their respective directories before switching
 
 ### 5. Set Up API Keys
 
@@ -123,12 +83,11 @@ GOOGLE_APPLICATION_CREDENTIALS=google-service-account.json
    - Enable the Text-to-Speech API
    - Create a service account
    - Download the JSON key file
-   - Rename the downloaded file to `google-service-account.json`
    - Place the JSON file in your project root
 
-## Configuration
+### Configuration
 
-### Audio Device Index
+#### Audio Device Index
 You may need to adjust the `input_device_index` in the code to match your system's audio input device. Use the following command to list audio devices:
 ```bash
 python3 -c "import pyaudio; p = pyaudio.PyAudio(); print('\n'.join([f'{i}: {p.get_device_info_by_index(i)['name']}' for i in range(p.get_device_count())]))"
@@ -136,30 +95,10 @@ python3 -c "import pyaudio; p = pyaudio.PyAudio(); print('\n'.join([f'{i}: {p.ge
 
 ## Running the Assistant
 
-### Basic Run
-```bash
-python3 src/main.py
-```
-
-### Specify Vosk Model Version
-You can choose between two Vosk model versions:
-- Version 22 (default): More accurate, larger size
-- Version 15: Lighter, faster
-
-```bash
-# Use Version 22 (default)
-python3 src/main.py
-
-# Use Version 15
-python3 src/main.py -m 15
-```
-
-### Using the Run Script
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
-**Note:** Modify `run.sh` to include model version if needed.
 
 ### Usage
 - Say "Jarvis" to activate the assistant
