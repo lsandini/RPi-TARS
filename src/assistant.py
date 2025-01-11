@@ -40,7 +40,7 @@ class TARS:
             "Huuh?",
             "Did you say something?",
             "Hmm?",
-            "Yes?",,
+            "Yes?",
             "At your service!"
         ]
 
