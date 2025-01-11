@@ -18,6 +18,9 @@ class TARS:
         # Initialize PyAudio
         self.pa = pyaudio.PyAudio()
         
+        # Identify correct audio input device
+        self.input_device_index = self._find_input_device()
+        
         # Initialize Porcupine with Jarvis wake word
         self.porcupine = pvporcupine.create(
             access_key=os.getenv('PICOVOICE_KEY'),
@@ -36,24 +39,26 @@ class TARS:
 
         # Funny wake word responses
         self.wake_word_responses = [
-            "Huuh?",
+            "Huh?",
             "Did you say something?",
             "Hmm?",
             "Yes?",
+            "I'm listening...",
+            "What's up?",
             "At your service!"
         ]
 
-        # Audio device configuration
-        self.input_device_index = self._find_input_device()
-
     def _find_input_device(self):
-        """Automatically find a suitable input device."""
+        """Find a suitable input device with the right specifications."""
         for i in range(self.pa.get_device_count()):
             dev = self.pa.get_device_info_by_index(i)
-            if dev['maxInputChannels'] > 0:
-                print(f"Potential input device: {i} - {dev['name']}")
+            print(f"Device {i}: {dev['name']} - Channels: {dev['maxInputChannels']}")
+            
+            # Look for a device with exactly 1 input channel
+            if dev['maxInputChannels'] == 1:
+                return i
         
-        # Default to 0 if no specific device found
+        # Fallback to default
         return 0
 
     def get_ai_response(self, text):
@@ -104,30 +109,21 @@ class TARS:
         # Create a new recognizer for conversation mode
         recognizer = vosk.KaldiRecognizer(self.vosk_model, 16000)
         
-        # Open audio stream with extensive error handling
-        try:
-            stream = self.pa.open(
-                rate=16000,
-                channels=1,
-                format=pyaudio.paInt16,
-                input=True,
-                frames_per_buffer=8192,
-                input_device_index=self.input_device_index
-            )
-        except Exception as e:
-            print(f"Error opening audio stream: {e}")
-            return
+        # Open audio stream
+        stream = self.pa.open(
+            rate=16000,
+            channels=1,
+            format=pyaudio.paInt16,
+            input=True,
+            frames_per_buffer=8192,
+            input_device_index=self.input_device_index
+        )
 
         print("Listening for your command...")
         
         try:
             while True:
-                try:
-                    data = stream.read(4096)
-                except IOError as e:
-                    print(f"Error reading stream: {e}")
-                    break
-
+                data = stream.read(4096)
                 if recognizer.AcceptWaveform(data):
                     result = json.loads(recognizer.Result())
                     command = result.get("text", "").strip()
@@ -149,30 +145,19 @@ class TARS:
             print("Conversation mode interrupted.")
         
         finally:
-            # Ensure stream is closed even if an error occurs
-            if 'stream' in locals():
-                stream.stop_stream()
-                stream.close()
+            stream.stop_stream()
+            stream.close()
 
     def run(self):
-        # Validate PyAudio and device
-        if self.pa.get_device_count() == 0:
-            print("No audio devices found!")
-            return
-
         # Set up initial audio stream for Porcupine
-        try:
-            porcupine_stream = self.pa.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=16000,
-                input=True,
-                frames_per_buffer=512,
-                input_device_index=self.input_device_index
-            )
-        except Exception as e:
-            print(f"Error setting up Porcupine stream: {e}")
-            return
+        porcupine_stream = self.pa.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=16000,
+            input=True,
+            frames_per_buffer=512,
+            input_device_index=self.input_device_index
+        )
         
         try:
             print("Listening for wake word 'Jarvis'...")
@@ -212,5 +197,5 @@ def main():
     tars = TARS()
     tars.run()
 
-if __name__ == '__main__':
+if __name__ == '__main__":
     main()
