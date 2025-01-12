@@ -189,20 +189,29 @@ def run(self):
     finally:
         if porcupine_stream is not None:
             print("Closing porcupine_stream...")
-            porcupine_stream.stop_stream()
-            porcupine_stream.close()
+            try:
+                porcupine_stream.stop_stream()
+                porcupine_stream.close()
+            except Exception as e:
+                print(f"Error closing porcupine_stream: {e}")
         else:
             print("porcupine_stream is None")
             
         if self.pa is not None:
             print("Terminating PyAudio...")
-            self.pa.terminate()
+            try:
+                self.pa.terminate()
+            except Exception as e:
+                print(f"Error terminating PyAudio: {e}")
         else:
             print("self.pa is None")
             
         if self.porcupine is not None:
             print("Deleting Porcupine instance...")
-            self.porcupine.delete()
+            try:
+                self.porcupine.delete()
+            except Exception as e:
+                print(f"Error deleting Porcupine instance: {e}")
         else:
             print("self.porcupine is None")
 
