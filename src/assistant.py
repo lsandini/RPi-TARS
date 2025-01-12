@@ -8,8 +8,6 @@ import time
 import speech_recognition as sr
 from openai import OpenAI
 from google.cloud import texttospeech
-import wave
-import io
 
 class TARS:
     def __init__(self):
@@ -19,28 +17,19 @@ class TARS:
         # Initialize PyAudio
         self.pa = pyaudio.PyAudio()
         
-        # Find ReSpeaker device
-        self.device_index = None
-        for i in range(self.pa.get_device_count()):
-            dev_info = self.pa.get_device_info_by_index(i)
-            print(f"Checking device {i}: {dev_info['name']}")
-            if 'seeed-2mic-voicecard' in dev_info['name'].lower():
-                self.device_index = i
-                break
-        
-        if self.device_index is None:
-            raise RuntimeError("Could not find ReSpeaker device!")
-        
-        print(f"Using ReSpeaker device index: {self.device_index}")
-        
-        # Initialize Porcupine with wake word
+        # Initialize Porcupine with Jarvis wake word
         self.porcupine = pvporcupine.create(
             access_key=os.getenv('PICOVOICE_KEY'),
             keywords=['jarvis']
         )
         
-        # Initialize Speech Recognizer just for Google API usage
+        # Initialize Speech Recognizer
         self.recognizer = sr.Recognizer()
+        
+        # Adjust for ambient noise
+        with sr.Microphone(device_index=8) as source:
+            print("Calibrating ambient noise... Please wait.")
+            self.recognizer.adjust_for_ambient_noise(source, duration=1)
 
         # Initialize OpenAI
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -54,83 +43,6 @@ class TARS:
             "Hmm?",
             "Yes Boss?"
         ]
-        
-        # Audio stream settings
-        self.CHUNK = 1024
-        self.FORMAT = pyaudio.paInt16
-        self.CHANNELS = 1
-        self.RATE = 16000
-
-    def _setup_audio_stream(self):
-        """Setup and return a new audio stream"""
-        return self.pa.open(
-            format=self.FORMAT,
-            channels=self.CHANNELS,
-            rate=self.RATE,
-            input=True,
-            frames_per_buffer=self.CHUNK,
-            input_device_index=self.device_index
-        )
-
-    def _record_audio(self, duration=5):
-        """Record audio for a specified duration using PyAudio directly"""
-        # Create a new stream for recording
-        stream = self._setup_audio_stream()
-        
-        print("Recording...")
-        frames = []
-        
-        # Record for the specified duration
-        for _ in range(0, int(self.RATE / self.CHUNK * duration)):
-            try:
-                data = stream.read(self.CHUNK, exception_on_overflow=False)
-                frames.append(data)
-            except IOError as e:
-                print(f"Warning: {e}")
-                continue
-        
-        print("Recording finished")
-        
-        # Close stream
-        stream.stop_stream()
-        stream.close()
-        
-        # Convert recorded audio to wave format in memory
-        audio_data = io.BytesIO()
-        with wave.open(audio_data, 'wb') as wf:
-            wf.setnchannels(self.CHANNELS)
-            wf.setsampwidth(self.pa.get_sample_size(self.FORMAT))
-            wf.setframerate(self.RATE)
-            wf.writeframes(b''.join(frames))
-        
-        return audio_data.getvalue()
-
-    def _listen_for_command(self):
-        print("Listening for your command...")
-        
-        try:
-            # Record audio directly using PyAudio
-            audio_data = self._record_audio(duration=5)
-            
-            try:
-                # Convert the recorded audio to an AudioData object
-                audio = sr.AudioData(audio_data, sample_rate=self.RATE, sample_width=2)
-                
-                # Use Google Speech Recognition
-                text = self.recognizer.recognize_google(audio)
-                print(f"You said: {text}")
-                return text.lower()
-                
-            except sr.UnknownValueError:
-                print("Could not understand audio")
-                return ""
-            except sr.RequestError as e:
-                print(f"Could not request results; {e}")
-                return ""
-        
-        except Exception as e:
-            print(f"Listening error: {e}")
-            return ""
 
     def get_ai_response(self, text):
         try:
@@ -174,6 +86,32 @@ class TARS:
             print(f"TTS Error: {e}")
             print(f"TARS: {text}")
 
+    def _listen_for_command(self):
+        print("Listening for your command...")
+        
+        try:
+            # Use microphone as source
+            with sr.Microphone(device_index=8) as source:
+                # Listen with a timeout and adjust for ambient noise
+                audio = self.recognizer.listen(source, timeout=5)
+                
+                try:
+                    # Use Google Speech Recognition
+                    text = self.recognizer.recognize_google(audio)
+                    print(f"You said: {text}")
+                    return text.lower()
+                
+                except sr.UnknownValueError:
+                    print("Could not understand audio")
+                    return ""
+                except sr.RequestError as e:
+                    print(f"Could not request results; {e}")
+                    return ""
+        
+        except Exception as e:
+            print(f"Listening error: {e}")
+            return ""
+
     def conversation_mode(self):
         print("Entering conversation mode...")
         commands_count = 0
@@ -207,50 +145,47 @@ class TARS:
                     break
 
     def run(self):
+        # Set up initial audio stream for Porcupine
+        porcupine_stream = self.pa.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=16000,
+            input=True,
+            frames_per_buffer=512,
+            input_device_index=8
+        )
+        
         try:
             print("Listening for wake word 'Jarvis'...")
             
             while True:
-                # Create a new stream for wake word detection
-                wake_stream = self.pa.open(
-                    format=pyaudio.paInt16,
-                    channels=1,
-                    rate=16000,
-                    input=True,
-                    frames_per_buffer=512,
-                    input_device_index=self.device_index
-                )
+                # Wake word detection phase
+                pcm = porcupine_stream.read(self.porcupine.frame_length)
+                pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
                 
-                try:
-                    # Wake word detection phase
-                    pcm = wake_stream.read(self.porcupine.frame_length)
-                    pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
+                if self.porcupine.process(pcm) >= 0:
+                    print("Wake word detected! Starting conversation mode...")
                     
-                    if self.porcupine.process(pcm) >= 0:
-                        print("Wake word detected! Starting conversation mode...")
-                        
-                        # Close wake word detection stream before speaking
-                        wake_stream.stop_stream()
-                        wake_stream.close()
-                        
-                        # Randomly choose and speak a wake word response
-                        wake_response = random.choice(self.wake_word_responses)
-                        print(f"TARS: {wake_response}")
-                        self.speak_response(wake_response)
-                        
-                        # Enter conversation mode
-                        self.conversation_mode()
-                        
-                        print("Listening for wake word 'Jarvis'...")
-                        
-                except IOError as e:
-                    print(f"Stream Error: {e}")
-                    wake_stream.close()
-                    continue
+                    # Randomly choose and speak a wake word response
+                    wake_response = random.choice(self.wake_word_responses)
+                    print(f"TARS: {wake_response}")
+                    self.speak_response(wake_response)
+                    
+                    # Temporarily stop wake word detection
+                    porcupine_stream.stop_stream()
+                    
+                    # Enter conversation mode
+                    self.conversation_mode()
+                    
+                    # Resume wake word detection
+                    porcupine_stream.start_stream()
+                    print("Listening for wake word 'Jarvis'...")
                     
         except KeyboardInterrupt:
             print("Stopping...")
         finally:
+            porcupine_stream.stop_stream()
+            porcupine_stream.close()
             self.pa.terminate()
             self.porcupine.delete()
 
