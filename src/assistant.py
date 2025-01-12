@@ -17,7 +17,21 @@ class TARS:
         # Initialize PyAudio
         self.pa = pyaudio.PyAudio()
         
-        # Initialize Porcupine with Jarvis wake word
+        # Find ReSpeaker device
+        self.device_index = None
+        for i in range(self.pa.get_device_count()):
+            dev_info = self.pa.get_device_info_by_index(i)
+            print(f"Checking device {i}: {dev_info['name']}")
+            if 'seeed-2mic-voicecard' in dev_info['name'].lower():
+                self.device_index = i
+                break
+        
+        if self.device_index is None:
+            raise RuntimeError("Could not find ReSpeaker device!")
+        
+        print(f"Using ReSpeaker device index: {self.device_index}")
+        
+        # Initialize Porcupine with wake word
         self.porcupine = pvporcupine.create(
             access_key=os.getenv('PICOVOICE_KEY'),
             keywords=['jarvis']
@@ -27,9 +41,14 @@ class TARS:
         self.recognizer = sr.Recognizer()
         
         # Adjust for ambient noise
-        with sr.Microphone(device_index=8) as source:
-            print("Calibrating ambient noise... Please wait.")
-            self.recognizer.adjust_for_ambient_noise(source, duration=1)
+        print("Initializing microphone...")
+        try:
+            with sr.Microphone(device_index=self.device_index) as source:
+                print("Calibrating ambient noise... Please wait.")
+                self.recognizer.adjust_for_ambient_noise(source, duration=1)
+        except Exception as e:
+            print(f"Error initializing microphone: {e}")
+            raise
 
         # Initialize OpenAI
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -80,7 +99,7 @@ class TARS:
             # Save and play response
             with open("response.wav", "wb") as out:
                 out.write(response.audio_content)
-            os.system(f'aplay -D plughw:3,0 response.wav')
+            os.system(f'aplay -D plughw:{self.device_index},0 response.wav')
 
         except Exception as e:
             print(f"TTS Error: {e}")
@@ -91,7 +110,7 @@ class TARS:
         
         try:
             # Use microphone as source
-            with sr.Microphone(device_index=8) as source:
+            with sr.Microphone(device_index=self.device_index) as source:
                 # Listen with a timeout and adjust for ambient noise
                 audio = self.recognizer.listen(source, timeout=5)
                 
@@ -152,7 +171,7 @@ class TARS:
             rate=16000,
             input=True,
             frames_per_buffer=512,
-            input_device_index=8
+            input_device_index=self.device_index
         )
         
         try:
