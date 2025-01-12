@@ -188,12 +188,23 @@ def run(self):
         print(f"Error: {e}")
     finally:
         if porcupine_stream is not None:
+            print("Closing porcupine_stream...")
             porcupine_stream.stop_stream()
             porcupine_stream.close()
+        else:
+            print("porcupine_stream is None")
+            
         if self.pa is not None:
+            print("Terminating PyAudio...")
             self.pa.terminate()
+        else:
+            print("self.pa is None")
+            
         if self.porcupine is not None:
+            print("Deleting Porcupine instance...")
             self.porcupine.delete()
+        else:
+            print("self.porcupine is None")
 
 def main():
     tars = TARS()
