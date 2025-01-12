@@ -9,8 +9,17 @@ import speech_recognition as sr
 from openai import OpenAI
 from google.cloud import texttospeech
 
+def list_audio_devices():
+    pa = pyaudio.PyAudio()
+    for i in range(pa.get_device_count()):
+        info = pa.get_device_info_by_index(i)
+        print(f"Device {i}: {info['name']} (Input Channels: {info['maxInputChannels']})")
+    pa.terminate()
+
+list_audio_devices()
+
 class TARS:
-    def __init__(self):
+    def __init__(self, device_index):
         # Load environment variables
         load_dotenv()
         
@@ -28,7 +37,7 @@ class TARS:
         
         # Adjust for ambient noise
         try:
-            with sr.Microphone(device_index=8) as source:
+            with sr.Microphone(device_index=device_index) as source:
                 print("Calibrating ambient noise... Please wait.")
                 self.recognizer.adjust_for_ambient_noise(source, duration=1)
         except Exception as e:
@@ -102,7 +111,7 @@ class TARS:
         
         try:
             # Use microphone as source
-            with sr.Microphone(device_index=8) as source:
+            with sr.Microphone(device_index=device_index) as source:
                 audio = self.recognizer.listen(source)
                 command = self.recognizer.recognize_google(audio)
                 return command
@@ -142,7 +151,7 @@ class TARS:
                 rate=16000,
                 input=True,
                 frames_per_buffer=512,
-                input_device_index=8
+                input_device_index=device_index
             )
             
             print("Listening for wake word 'Jarvis'...")
@@ -203,7 +212,8 @@ class TARS:
                 print("self.porcupine is None")
 
 def main():
-    tars = TARS()
+    device_index = 8  # Update this with the correct device index from the list_audio_devices output
+    tars = TARS(device_index)
     tars.run()
 
 if __name__ == '__main__':
