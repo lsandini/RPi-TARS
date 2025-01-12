@@ -54,31 +54,40 @@ class TARS:
             "Hmm?",
             "Yes Boss?"
         ]
+        
+        # Audio stream settings
+        self.CHUNK = 1024
+        self.FORMAT = pyaudio.paInt16
+        self.CHANNELS = 1
+        self.RATE = 16000
+
+    def _setup_audio_stream(self):
+        """Setup and return a new audio stream"""
+        return self.pa.open(
+            format=self.FORMAT,
+            channels=self.CHANNELS,
+            rate=self.RATE,
+            input=True,
+            frames_per_buffer=self.CHUNK,
+            input_device_index=self.device_index
+        )
 
     def _record_audio(self, duration=5):
         """Record audio for a specified duration using PyAudio directly"""
-        CHUNK = 1024
-        FORMAT = pyaudio.paInt16
-        CHANNELS = 1
-        RATE = 16000
-        
-        # Open audio stream
-        stream = self.pa.open(
-            format=FORMAT,
-            channels=CHANNELS,
-            rate=RATE,
-            input=True,
-            frames_per_buffer=CHUNK,
-            input_device_index=self.device_index
-        )
+        # Create a new stream for recording
+        stream = self._setup_audio_stream()
         
         print("Recording...")
         frames = []
         
         # Record for the specified duration
-        for _ in range(0, int(RATE / CHUNK * duration)):
-            data = stream.read(CHUNK, exception_on_overflow=False)
-            frames.append(data)
+        for _ in range(0, int(self.RATE / self.CHUNK * duration)):
+            try:
+                data = stream.read(self.CHUNK, exception_on_overflow=False)
+                frames.append(data)
+            except IOError as e:
+                print(f"Warning: {e}")
+                continue
         
         print("Recording finished")
         
@@ -89,9 +98,9 @@ class TARS:
         # Convert recorded audio to wave format in memory
         audio_data = io.BytesIO()
         with wave.open(audio_data, 'wb') as wf:
-            wf.setnchannels(CHANNELS)
-            wf.setsampwidth(self.pa.get_sample_size(FORMAT))
-            wf.setframerate(RATE)
+            wf.setnchannels(self.CHANNELS)
+            wf.setsampwidth(self.pa.get_sample_size(self.FORMAT))
+            wf.setframerate(self.RATE)
             wf.writeframes(b''.join(frames))
         
         return audio_data.getvalue()
@@ -105,7 +114,7 @@ class TARS:
             
             try:
                 # Convert the recorded audio to an AudioData object
-                audio = sr.AudioData(audio_data, sample_rate=16000, sample_width=2)
+                audio = sr.AudioData(audio_data, sample_rate=self.RATE, sample_width=2)
                 
                 # Use Google Speech Recognition
                 text = self.recognizer.recognize_google(audio)
@@ -198,47 +207,50 @@ class TARS:
                     break
 
     def run(self):
-        # Set up initial audio stream for Porcupine
-        porcupine_stream = self.pa.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=16000,
-            input=True,
-            frames_per_buffer=512,
-            input_device_index=self.device_index
-        )
-        
         try:
             print("Listening for wake word 'Jarvis'...")
             
             while True:
-                # Wake word detection phase
-                pcm = porcupine_stream.read(self.porcupine.frame_length)
-                pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
+                # Create a new stream for wake word detection
+                wake_stream = self.pa.open(
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=16000,
+                    input=True,
+                    frames_per_buffer=512,
+                    input_device_index=self.device_index
+                )
                 
-                if self.porcupine.process(pcm) >= 0:
-                    print("Wake word detected! Starting conversation mode...")
+                try:
+                    # Wake word detection phase
+                    pcm = wake_stream.read(self.porcupine.frame_length)
+                    pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
                     
-                    # Randomly choose and speak a wake word response
-                    wake_response = random.choice(self.wake_word_responses)
-                    print(f"TARS: {wake_response}")
-                    self.speak_response(wake_response)
-                    
-                    # Temporarily stop wake word detection
-                    porcupine_stream.stop_stream()
-                    
-                    # Enter conversation mode
-                    self.conversation_mode()
-                    
-                    # Resume wake word detection
-                    porcupine_stream.start_stream()
-                    print("Listening for wake word 'Jarvis'...")
+                    if self.porcupine.process(pcm) >= 0:
+                        print("Wake word detected! Starting conversation mode...")
+                        
+                        # Close wake word detection stream before speaking
+                        wake_stream.stop_stream()
+                        wake_stream.close()
+                        
+                        # Randomly choose and speak a wake word response
+                        wake_response = random.choice(self.wake_word_responses)
+                        print(f"TARS: {wake_response}")
+                        self.speak_response(wake_response)
+                        
+                        # Enter conversation mode
+                        self.conversation_mode()
+                        
+                        print("Listening for wake word 'Jarvis'...")
+                        
+                except IOError as e:
+                    print(f"Stream Error: {e}")
+                    wake_stream.close()
+                    continue
                     
         except KeyboardInterrupt:
             print("Stopping...")
         finally:
-            porcupine_stream.stop_stream()
-            porcupine_stream.close()
             self.pa.terminate()
             self.porcupine.delete()
 
