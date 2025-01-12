@@ -27,9 +27,15 @@ class TARS:
         self.recognizer = sr.Recognizer()
         
         # Adjust for ambient noise
-        with sr.Microphone(device_index=8) as source:
-            print("Calibrating ambient noise... Please wait.")
-            self.recognizer.adjust_for_ambient_noise(source, duration=1)
+        try:
+            with sr.Microphone(device_index=8) as source:
+                print("Calibrating ambient noise... Please wait.")
+                self.recognizer.adjust_for_ambient_noise(source, duration=1)
+        except Exception as e:
+            print(f"Microphone initialization error: {e}")
+            self.microphone_initialized = False
+        else:
+            self.microphone_initialized = True
 
         # Initialize OpenAI
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -80,6 +86,7 @@ class TARS:
             # Save and play response
             with open("response.wav", "wb") as out:
                 out.write(response.audio_content)
+                
             os.system(f'aplay -D plughw:3,0 response.wav')
 
         except Exception as e:
@@ -87,62 +94,43 @@ class TARS:
             print(f"TARS: {text}")
 
     def _listen_for_command(self):
+        if not self.microphone_initialized:
+            print("Microphone not initialized. Cannot listen for commands.")
+            return ""
+        
         print("Listening for your command...")
         
         try:
             # Use microphone as source
             with sr.Microphone(device_index=8) as source:
-                # Listen with a timeout and adjust for ambient noise
-                audio = self.recognizer.listen(source, timeout=5)
-                
-                try:
-                    # Use Google Speech Recognition
-                    text = self.recognizer.recognize_google(audio)
-                    print(f"You said: {text}")
-                    return text.lower()
-                
-                except sr.UnknownValueError:
-                    print("Could not understand audio")
-                    return ""
-                except sr.RequestError as e:
-                    print(f"Could not request results; {e}")
-                    return ""
-        
+                audio = self.recognizer.listen(source)
+                command = self.recognizer.recognize_google(audio)
+                return command
         except Exception as e:
             print(f"Listening error: {e}")
             return ""
 
     def conversation_mode(self):
+        if not self.microphone_initialized:
+            print("Microphone not initialized. Cannot enter conversation mode.")
+            return
+        
         print("Entering conversation mode...")
         commands_count = 0
         last_command_time = time.time()
         
         while True:
             if commands_count >= 5:
-                print("Conversation limit reached. Going back to wake word mode.")
-                break
-                
-            if time.time() - last_command_time > 10:
-                print("Conversation timeout. Going back to wake word mode.")
                 break
             
             command = self._listen_for_command()
-            
             if command:
-                print(f"You said: {command}")
-                
-                # Get and speak AI response
-                if not any(word in command for word in ["thank you", "goodbye", "thanks"]):
-                    ai_response = self.get_ai_response(command)
-                    print(f"TARS: {ai_response}")
-                    self.speak_response(ai_response)
-                
-                last_command_time = time.time()
+                response = self.get_ai_response(command)
+                self.speak_response(response)
                 commands_count += 1
-                
-                if any(word in command for word in ["thank you", "goodbye", "thanks"]):
-                    print("Ending conversation mode.")
-                    break
+                last_command_time = time.time()
+            elif time.time() - last_command_time > 60:
+                break
 
 def run(self):
     # Set up initial audio stream for Porcupine
@@ -160,7 +148,6 @@ def run(self):
         print("Listening for wake word 'Jarvis'...")
         
         while True:
-            # Wake word detection phase
             pcm = porcupine_stream.read(self.porcupine.frame_length)
             pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
             
