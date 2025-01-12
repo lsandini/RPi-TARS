@@ -102,7 +102,7 @@ class TARS:
         
         try:
             # Use microphone as source
-            with sr.Microphone(device_index=device_index) as source:
+            with sr.Microphone(device_index=self.device_index) as source:
                 audio = self.recognizer.listen(source)
                 command = self.recognizer.recognize_google(audio)
                 return command
@@ -142,7 +142,7 @@ class TARS:
                 rate=16000,
                 input=True,
                 frames_per_buffer=512,
-                input_device_index=device_index
+                input_device_index=self.device_index
             )
             
             print("Listening for wake word 'Jarvis'...")
@@ -203,7 +203,7 @@ class TARS:
                 print("self.porcupine is None")
 
 def main():
-    device_index = 8  # Update this with the correct device index from the list_audio_devices output
+    device_index = 1  # Update this with the correct device index from the list_audio_devices output
     tars = TARS(device_index)
     tars.run()
 
