@@ -144,8 +144,10 @@ class TARS:
                     print("Ending conversation mode.")
                     break
 
-    def run(self):
-        # Set up initial audio stream for Porcupine
+def run(self):
+    # Set up initial audio stream for Porcupine
+    porcupine_stream = None
+    try:
         porcupine_stream = self.pa.open(
             format=pyaudio.paInt16,
             channels=1,
@@ -155,38 +157,42 @@ class TARS:
             input_device_index=8
         )
         
-        try:
-            print("Listening for wake word 'Jarvis'...")
+        print("Listening for wake word 'Jarvis'...")
+        
+        while True:
+            # Wake word detection phase
+            pcm = porcupine_stream.read(self.porcupine.frame_length)
+            pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
             
-            while True:
-                # Wake word detection phase
-                pcm = porcupine_stream.read(self.porcupine.frame_length)
-                pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
+            if self.porcupine.process(pcm) >= 0:
+                print("Wake word detected! Starting conversation mode...")
                 
-                if self.porcupine.process(pcm) >= 0:
-                    print("Wake word detected! Starting conversation mode...")
-                    
-                    # Randomly choose and speak a wake word response
-                    wake_response = random.choice(self.wake_word_responses)
-                    print(f"TARS: {wake_response}")
-                    self.speak_response(wake_response)
-                    
-                    # Temporarily stop wake word detection
-                    porcupine_stream.stop_stream()
-                    
-                    # Enter conversation mode
-                    self.conversation_mode()
-                    
-                    # Resume wake word detection
-                    porcupine_stream.start_stream()
-                    print("Listening for wake word 'Jarvis'...")
-                    
-        except KeyboardInterrupt:
-            print("Stopping...")
-        finally:
+                # Randomly choose and speak a wake word response
+                wake_response = random.choice(self.wake_word_responses)
+                print(f"TARS: {wake_response}")
+                self.speak_response(wake_response)
+                
+                # Temporarily stop wake word detection
+                porcupine_stream.stop_stream()
+                
+                # Enter conversation mode
+                self.conversation_mode()
+                
+                # Resume wake word detection
+                porcupine_stream.start_stream()
+                print("Listening for wake word 'Jarvis'...")
+                
+    except KeyboardInterrupt:
+        print("Stopping...")
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        if porcupine_stream is not None:
             porcupine_stream.stop_stream()
             porcupine_stream.close()
+        if self.pa is not None:
             self.pa.terminate()
+        if self.porcupine is not None:
             self.porcupine.delete()
 
 def main():
