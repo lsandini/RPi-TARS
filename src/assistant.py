@@ -40,23 +40,15 @@ class TARS:
         # Initialize Speech Recognizer
         self.recognizer = sr.Recognizer()
         
-        # Test microphone initialization directly with PyAudio
-        print("Testing microphone initialization...")
+        # Adjust for ambient noise
+        print("Initializing microphone...")
         try:
-            test_stream = self.pa.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=16000,
-                input=True,
-                frames_per_buffer=512,
-                input_device_index=self.device_index
-            )
-            test_stream.close()
-            print("PyAudio initialization successful")
-            
-            # Now initialize speech recognition
-            print("Initializing speech recognition...")
-            self.mic = sr.Microphone(device_index=self.device_index, sample_rate=16000)
+            with sr.Microphone(device_index=self.device_index) as source:
+                print("Calibrating ambient noise... Please wait.")
+                self.recognizer.adjust_for_ambient_noise(source, duration=1)
+        except Exception as e:
+            print(f"Error initializing microphone: {e}")
+            raise
 
         # Initialize OpenAI
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -117,8 +109,8 @@ class TARS:
         print("Listening for your command...")
         
         try:
-            # Use our pre-initialized microphone
-            with self.mic as source:
+            # Use microphone as source
+            with sr.Microphone(device_index=self.device_index) as source:
                 # Listen with a timeout and adjust for ambient noise
                 audio = self.recognizer.listen(source, timeout=5)
                 
