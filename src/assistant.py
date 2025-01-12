@@ -132,75 +132,75 @@ class TARS:
             elif time.time() - last_command_time > 60:
                 break
 
-def run(self):
-    # Set up initial audio stream for Porcupine
-    porcupine_stream = None
-    try:
-        porcupine_stream = self.pa.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=16000,
-            input=True,
-            frames_per_buffer=512,
-            input_device_index=8
-        )
-        
-        print("Listening for wake word 'Jarvis'...")
-        
-        while True:
-            pcm = porcupine_stream.read(self.porcupine.frame_length)
-            pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
+    def run(self):
+        # Set up initial audio stream for Porcupine
+        porcupine_stream = None
+        try:
+            porcupine_stream = self.pa.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=16000,
+                input=True,
+                frames_per_buffer=512,
+                input_device_index=8
+            )
             
-            if self.porcupine.process(pcm) >= 0:
-                print("Wake word detected! Starting conversation mode...")
-                
-                # Randomly choose and speak a wake word response
-                wake_response = random.choice(self.wake_word_responses)
-                print(f"TARS: {wake_response}")
-                self.speak_response(wake_response)
-                
-                # Temporarily stop wake word detection
-                porcupine_stream.stop_stream()
-                
-                # Enter conversation mode
-                self.conversation_mode()
-                
-                # Resume wake word detection
-                porcupine_stream.start_stream()
-                print("Listening for wake word 'Jarvis'...")
-                
-    except KeyboardInterrupt:
-        print("Stopping...")
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        if porcupine_stream is not None:
-            print("Closing porcupine_stream...")
-            try:
-                porcupine_stream.stop_stream()
-                porcupine_stream.close()
-            except Exception as e:
-                print(f"Error closing porcupine_stream: {e}")
-        else:
-            print("porcupine_stream is None")
+            print("Listening for wake word 'Jarvis'...")
             
-        if self.pa is not None:
-            print("Terminating PyAudio...")
-            try:
-                self.pa.terminate()
-            except Exception as e:
-                print(f"Error terminating PyAudio: {e}")
-        else:
-            print("self.pa is None")
-            
-        if self.porcupine is not None:
-            print("Deleting Porcupine instance...")
-            try:
-                self.porcupine.delete()
-            except Exception as e:
-                print(f"Error deleting Porcupine instance: {e}")
-        else:
-            print("self.porcupine is None")
+            while True:
+                pcm = porcupine_stream.read(self.porcupine.frame_length)
+                pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
+                
+                if self.porcupine.process(pcm) >= 0:
+                    print("Wake word detected! Starting conversation mode...")
+                    
+                    # Randomly choose and speak a wake word response
+                    wake_response = random.choice(self.wake_word_responses)
+                    print(f"TARS: {wake_response}")
+                    self.speak_response(wake_response)
+                    
+                    # Temporarily stop wake word detection
+                    porcupine_stream.stop_stream()
+                    
+                    # Enter conversation mode
+                    self.conversation_mode()
+                    
+                    # Resume wake word detection
+                    porcupine_stream.start_stream()
+                    print("Listening for wake word 'Jarvis'...")
+                    
+        except KeyboardInterrupt:
+            print("Stopping...")
+        except Exception as e:
+            print(f"Error: {e}")
+        finally:
+            if porcupine_stream is not None:
+                print("Closing porcupine_stream...")
+                try:
+                    porcupine_stream.stop_stream()
+                    porcupine_stream.close()
+                except Exception as e:
+                    print(f"Error closing porcupine_stream: {e}")
+            else:
+                print("porcupine_stream is None")
+                
+            if self.pa is not None:
+                print("Terminating PyAudio...")
+                try:
+                    self.pa.terminate()
+                except Exception as e:
+                    print(f"Error terminating PyAudio: {e}")
+            else:
+                print("self.pa is None")
+                
+            if self.porcupine is not None:
+                print("Deleting Porcupine instance...")
+                try:
+                    self.porcupine.delete()
+                except Exception as e:
+                    print(f"Error deleting Porcupine instance: {e}")
+            else:
+                print("self.porcupine is None")
 
 def main():
     tars = TARS()
