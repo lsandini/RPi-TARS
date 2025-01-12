@@ -1,5 +1,4 @@
 pvporcupine
-vosk
 pyaudio
 openai
 python-dotenv
