@@ -4,4 +4,4 @@ pyaudio
 openai
 python-dotenv
 google-cloud-texttospeech
-SpeechRegnition
+speechrecognition
