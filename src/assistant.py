@@ -9,15 +9,6 @@ import speech_recognition as sr
 from openai import OpenAI
 from google.cloud import texttospeech
 
-def list_audio_devices():
-    pa = pyaudio.PyAudio()
-    for i in range(pa.get_device_count()):
-        info = pa.get_device_info_by_index(i)
-        print(f"Device {i}: {info['name']} (Input Channels: {info['maxInputChannels']})")
-    pa.terminate()
-
-list_audio_devices()
-
 class TARS:
     def __init__(self, device_index):
         # Load environment variables
