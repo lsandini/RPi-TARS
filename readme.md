@@ -28,8 +28,8 @@ TARS is an advanced voice-activated AI assistant that leverages multiple cutting
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/tars-assistant.git
-cd tars-assistant
+git clone https://github.com/yourusername/RPi-TARS.git
+cd RPi-TARS
 ```
 
 ### 2. Install System Dependencies
@@ -46,7 +46,8 @@ sudo apt-get install -y \
     python3-dev \
     libportaudio2 \
     libasound2-dev \
-    flac
+    flac \
+    git
 ```
 
 ### 3. Install Python Dependencies
