@@ -27,7 +27,7 @@ class TARS:
         self.recognizer = sr.Recognizer()
         
         # Adjust for ambient noise
-        with sr.Microphone(device_index=8) as source:
+        with sr.Microphone(device_index=3) as source:
             print("Calibrating ambient noise... Please wait.")
             self.recognizer.adjust_for_ambient_noise(source, duration=1)
 
@@ -91,7 +91,7 @@ class TARS:
         
         try:
             # Use microphone as source
-            with sr.Microphone(device_index=8) as source:
+            with sr.Microphone(device_index=3) as source:
                 # Listen with a timeout and adjust for ambient noise
                 audio = self.recognizer.listen(source, timeout=5)
                 
@@ -152,7 +152,7 @@ class TARS:
             rate=16000,
             input=True,
             frames_per_buffer=512,
-            input_device_index=8
+            input_device_index=3
         )
         
         try:
