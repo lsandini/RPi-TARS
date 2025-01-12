@@ -18,15 +18,9 @@ stderr = sys.stderr
 sys.stderr = open(os.devnull, 'w')
 
 def main():
-    try:
-        tars = TARS()
-        print("Listening for wake word 'Jarvis'...")  # Using print instead of logger
-        tars.run()
-    except Exception as e:
-        print(f"Error: {e}")
-        raise
-    finally:
-        sys.stderr = stderr
+    device_index = 1  # Update this with the correct device index from the list_audio_devices output
+    tars = TARS(device_index)
+    tars.run()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
