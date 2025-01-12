@@ -11,6 +11,8 @@ from google.cloud import texttospeech
 
 class TARS:
     def __init__(self, device_index):
+        self.device_index = device_index
+
         # Load environment variables
         load_dotenv()
         
@@ -203,7 +205,7 @@ class TARS:
                 print("self.porcupine is None")
 
 def main():
-    device_index = 1  # Update this with the correct device index from the list_audio_devices output
+    device_index = 3  # Update this with the correct device index from the list_audio_devices output
     tars = TARS(device_index)
     tars.run()
 
