@@ -8,6 +8,8 @@ import time
 import speech_recognition as sr
 from openai import OpenAI
 from google.cloud import texttospeech
+import wave
+import io
 
 class TARS:
     def __init__(self):
@@ -37,18 +39,8 @@ class TARS:
             keywords=['jarvis']
         )
         
-        # Initialize Speech Recognizer
+        # Initialize Speech Recognizer just for Google API usage
         self.recognizer = sr.Recognizer()
-        
-        # Adjust for ambient noise
-        print("Initializing microphone...")
-        try:
-            with sr.Microphone(device_index=self.device_index) as source:
-                print("Calibrating ambient noise... Please wait.")
-                self.recognizer.adjust_for_ambient_noise(source, duration=1)
-        except Exception as e:
-            print(f"Error initializing microphone: {e}")
-            raise
 
         # Initialize OpenAI
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -62,6 +54,74 @@ class TARS:
             "Hmm?",
             "Yes Boss?"
         ]
+
+    def _record_audio(self, duration=5):
+        """Record audio for a specified duration using PyAudio directly"""
+        CHUNK = 1024
+        FORMAT = pyaudio.paInt16
+        CHANNELS = 1
+        RATE = 16000
+        
+        # Open audio stream
+        stream = self.pa.open(
+            format=FORMAT,
+            channels=CHANNELS,
+            rate=RATE,
+            input=True,
+            frames_per_buffer=CHUNK,
+            input_device_index=self.device_index
+        )
+        
+        print("Recording...")
+        frames = []
+        
+        # Record for the specified duration
+        for _ in range(0, int(RATE / CHUNK * duration)):
+            data = stream.read(CHUNK, exception_on_overflow=False)
+            frames.append(data)
+        
+        print("Recording finished")
+        
+        # Close stream
+        stream.stop_stream()
+        stream.close()
+        
+        # Convert recorded audio to wave format in memory
+        audio_data = io.BytesIO()
+        with wave.open(audio_data, 'wb') as wf:
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(self.pa.get_sample_size(FORMAT))
+            wf.setframerate(RATE)
+            wf.writeframes(b''.join(frames))
+        
+        return audio_data.getvalue()
+
+    def _listen_for_command(self):
+        print("Listening for your command...")
+        
+        try:
+            # Record audio directly using PyAudio
+            audio_data = self._record_audio(duration=5)
+            
+            try:
+                # Convert the recorded audio to an AudioData object
+                audio = sr.AudioData(audio_data, sample_rate=16000, sample_width=2)
+                
+                # Use Google Speech Recognition
+                text = self.recognizer.recognize_google(audio)
+                print(f"You said: {text}")
+                return text.lower()
+                
+            except sr.UnknownValueError:
+                print("Could not understand audio")
+                return ""
+            except sr.RequestError as e:
+                print(f"Could not request results; {e}")
+                return ""
+        
+        except Exception as e:
+            print(f"Listening error: {e}")
+            return ""
 
     def get_ai_response(self, text):
         try:
@@ -99,37 +159,11 @@ class TARS:
             # Save and play response
             with open("response.wav", "wb") as out:
                 out.write(response.audio_content)
-            os.system(f'aplay -D plughw:{self.device_index},0 response.wav')
+            os.system(f'aplay -D plughw:3,0 response.wav')
 
         except Exception as e:
             print(f"TTS Error: {e}")
             print(f"TARS: {text}")
-
-    def _listen_for_command(self):
-        print("Listening for your command...")
-        
-        try:
-            # Use microphone as source
-            with sr.Microphone(device_index=self.device_index) as source:
-                # Listen with a timeout and adjust for ambient noise
-                audio = self.recognizer.listen(source, timeout=5)
-                
-                try:
-                    # Use Google Speech Recognition
-                    text = self.recognizer.recognize_google(audio)
-                    print(f"You said: {text}")
-                    return text.lower()
-                
-                except sr.UnknownValueError:
-                    print("Could not understand audio")
-                    return ""
-                except sr.RequestError as e:
-                    print(f"Could not request results; {e}")
-                    return ""
-        
-        except Exception as e:
-            print(f"Listening error: {e}")
-            return ""
 
     def conversation_mode(self):
         print("Entering conversation mode...")
