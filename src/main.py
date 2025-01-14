@@ -13,20 +13,14 @@ logging.basicConfig(
     force=True
 )
 
-# Redirect stderr (ALSA messages) to devnull
-stderr = sys.stderr
-sys.stderr = open(os.devnull, 'w')
-
 def main():
     try:
         tars = TARS()
-        print("Listening for wake word 'Jarvis'...")  # Using print instead of logger
+        print("Listening for wake word 'Jarvis'...")
         tars.run()
     except Exception as e:
         print(f"Error: {e}")
         raise
-    finally:
-        sys.stderr = stderr
 
 if __name__ == "__main__":
     main()

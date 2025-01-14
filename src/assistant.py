@@ -26,10 +26,39 @@ class TARS:
         # Initialize Speech Recognizer
         self.recognizer = sr.Recognizer()
         
+        # Find the correct microphone index
+        print("Searching for input devices...")
+        for i in range(self.pa.get_device_count()):
+            dev_info = self.pa.get_device_info_by_index(i)
+            print(f"Checking device {i}: {dev_info['name']}")
+            # Look for the 'array' device which represents our ReSpeaker
+            if dev_info.get('name') == 'array' and dev_info.get('maxInputChannels') > 0:
+                self.mic_index = i
+                print(f"Found microphone array at index {i}")
+                break
+        else:
+            # Fallback to any device with input capabilities
+            for i in range(self.pa.get_device_count()):
+                dev_info = self.pa.get_device_info_by_index(i)
+                if dev_info.get('maxInputChannels') > 0:
+                    self.mic_index = i
+                    print(f"Using fallback input device at index {i}: {dev_info['name']}")
+                    break
+            else:
+                raise RuntimeError("Could not find any input device")
+        
+        # Store device info for later use
+        self.device_info = self.pa.get_device_info_by_index(self.mic_index)
+        print(f"Using device with sample rate: {self.device_info['defaultSampleRate']}")
+        
         # Adjust for ambient noise
-        with sr.Microphone(device_index=3) as source:
-            print("Calibrating ambient noise... Please wait.")
-            self.recognizer.adjust_for_ambient_noise(source, duration=1)
+        try:
+            with sr.Microphone(device_index=self.mic_index) as source:
+                print("Calibrating ambient noise... Please wait.")
+                self.recognizer.adjust_for_ambient_noise(source, duration=2)
+        except Exception as e:
+            print(f"Error during ambient noise calibration: {e}")
+            print("Continuing with default parameters...")
 
         # Initialize OpenAI
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -80,7 +109,10 @@ class TARS:
             # Save and play response
             with open("response.wav", "wb") as out:
                 out.write(response.audio_content)
-            os.system(f'aplay -D plughw:3,0 response.wav')
+                
+            # Use the ReSpeaker's playback device by name
+            playback_command = 'aplay -D plughw:CARD=seeed2micvoicec response.wav'
+            os.system(playback_command)
 
         except Exception as e:
             print(f"TTS Error: {e}")
@@ -90,9 +122,9 @@ class TARS:
         print("Listening for your command...")
         
         try:
-            # Use microphone as source
-            with sr.Microphone(device_index=3) as source:
+            with sr.Microphone(device_index=self.mic_index) as source:
                 # Listen with a timeout and adjust for ambient noise
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
                 audio = self.recognizer.listen(source, timeout=5)
                 
                 try:
@@ -129,8 +161,6 @@ class TARS:
             command = self._listen_for_command()
             
             if command:
-                print(f"You said: {command}")
-                
                 # Get and speak AI response
                 if not any(word in command for word in ["thank you", "goodbye", "thanks"]):
                     ai_response = self.get_ai_response(command)
@@ -145,23 +175,32 @@ class TARS:
                     break
 
     def run(self):
+        # Get the supported sample rate from the device
+        supported_rate = int(self.device_info['defaultSampleRate'])
+        
         # Set up initial audio stream for Porcupine
         porcupine_stream = self.pa.open(
             format=pyaudio.paInt16,
             channels=1,
-            rate=16000,
+            rate=supported_rate,  # Use the device's supported rate
             input=True,
             frames_per_buffer=512,
-            input_device_index=3
+            input_device_index=self.mic_index
         )
         
         try:
-            print("Listening for wake word 'Jarvis'...")
+            print(f"Listening for wake word 'Jarvis' (using sample rate: {supported_rate})...")
             
             while True:
                 # Wake word detection phase
-                pcm = porcupine_stream.read(self.porcupine.frame_length)
-                pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
+                # Adjust frame length based on sample rate ratio
+                adjusted_frame_length = int(supported_rate/16000 * self.porcupine.frame_length)
+                pcm = porcupine_stream.read(adjusted_frame_length, exception_on_overflow=False)
+                pcm = struct.unpack_from("h" * adjusted_frame_length, pcm)
+                
+                # Downsample to 16000 Hz for Porcupine if needed
+                if supported_rate != 16000:
+                    pcm = pcm[::int(supported_rate/16000)]
                 
                 if self.porcupine.process(pcm) >= 0:
                     print("Wake word detected! Starting conversation mode...")
@@ -188,10 +227,3 @@ class TARS:
             porcupine_stream.close()
             self.pa.terminate()
             self.porcupine.delete()
-
-def main():
-    tars = TARS()
-    tars.run()
-
-if __name__ == '__main__':
-    main()
