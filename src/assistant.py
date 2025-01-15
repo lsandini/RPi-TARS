@@ -133,9 +133,10 @@ class TARS:
         ]
 
     def strip_ssml_tags(self, text):
-        """Remove SSML tags for cleaner console output"""
-        if text.startswith('<speak>') and text.endswith('</speak>'):
-            return text[7:-8]  # Remove <speak> and </speak>
+        """Remove all SSML tags for cleaner console output"""
+        import re
+        # Remove all XML/SSML tags using regex
+        text = re.sub(r'<[^>]*>', '', text)
         return text
 
     def load_humor_setting(self):
@@ -222,7 +223,7 @@ class TARS:
             # Configure audio parameters
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-                speaking_rate=1.0,
+                speaking_rate=0.85,
                 pitch=0
             )
 
