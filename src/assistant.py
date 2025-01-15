@@ -1,3 +1,8 @@
+# TARS Voice Assistant
+# Based on the TARS AI character from the movie Interstellar
+# This assistant uses wake word detection, speech recognition, OpenAI for responses,
+# and text-to-speech for verbal interaction.
+
 import os
 import json
 from dotenv import load_dotenv
@@ -11,18 +16,43 @@ from openai import OpenAI
 from google.cloud import texttospeech
 
 class TARS:
+    """
+    TARS Voice Assistant Class
+    
+    This class implements a voice-activated AI assistant that:
+    - Listens for the wake word "Jarvis"
+    - Uses Google Speech Recognition for command interpretation
+    - Generates responses using OpenAI's GPT models
+    - Converts responses to speech using Google TTS
+    - Maintains an adjustable humor setting (0-100%)
+    - Provides TARS-like personality and responses
+    
+    The assistant requires:
+    - Picovoice API key for wake word detection
+    - OpenAI API key for response generation
+    - Google Cloud credentials for text-to-speech
+    - A microphone (preferably ReSpeaker array)
+    - Audio output capabilities
+    """
+
     def __init__(self):
-        # Load environment variables
+        # Load environment variables from .env file
         load_dotenv()
         
-        # Initialize humor setting
+        # ANSI escape codes for terminal text styling
+        self.BOLD = '\033[1m'
+        self.GREEN = '\033[1;32m'  # Bold green for user messages
+        self.BLUE = '\033[1;34m'   # Bold blue for TARS responses
+        self.END = '\033[0m'
+        
+        # Initialize humor setting from config file
         self.config_file = 'tars_config.json'
         self.humor_setting = self.load_humor_setting()
         
-        # Initialize PyAudio
+        # Initialize PyAudio for audio handling
         self.pa = pyaudio.PyAudio()
         
-        # Initialize Porcupine with Jarvis wake word
+        # Initialize Porcupine wake word detector
         self.porcupine = pvporcupine.create(
             access_key=os.getenv('PICOVOICE_KEY'),
             keywords=['jarvis']
@@ -31,17 +61,17 @@ class TARS:
         # Initialize Speech Recognizer
         self.recognizer = sr.Recognizer()
         
-        # Find the correct microphone index
+        # Find and configure the appropriate microphone
         print("Initializing audio devices...", end='', flush=True)
         for i in range(self.pa.get_device_count()):
             dev_info = self.pa.get_device_info_by_index(i)
-            # Look for the 'array' device which represents our ReSpeaker
+            # First try to find ReSpeaker array microphone
             if dev_info.get('name') == 'array' and dev_info.get('maxInputChannels') > 0:
                 self.mic_index = i
                 print(" done")
                 break
         else:
-            # Fallback to any device with input capabilities
+            # Fallback to any available input device
             for i in range(self.pa.get_device_count()):
                 dev_info = self.pa.get_device_info_by_index(i)
                 if dev_info.get('maxInputChannels') > 0:
@@ -54,7 +84,7 @@ class TARS:
         # Store device info for later use
         self.device_info = self.pa.get_device_info_by_index(self.mic_index)
         
-        # Adjust for ambient noise
+        # Calibrate microphone for ambient noise
         try:
             with sr.Microphone(device_index=self.mic_index) as source:
                 print("Calibrating microphone...", end='', flush=True)
@@ -63,13 +93,14 @@ class TARS:
         except Exception as e:
             print("\nError during calibration, using default parameters")
 
-        # Initialize OpenAI
+        # Initialize OpenAI client
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
-        # Initialize Google TTS
+        # Initialize Google TTS client
         self.tts_client = texttospeech.TextToSpeechClient()
 
-        # Add SSML hesitation expressions
+        # SSML hesitation expressions for more natural speech
+        # These add pauses and filler words before responses
         self.hesitation_expressions = [
             '<break time="500ms"/>ummmmm<break time="300ms"/>... ',
             '<break time="400ms"/>hmmmmm<break time="300ms"/>... ',
@@ -81,14 +112,15 @@ class TARS:
             '<break time="400ms"/>ahhhhh<break time="300ms"/>... '
         ]
 
-        # Funny wake word responses
+        # Simple wake word acknowledgment responses
         self.wake_word_responses = [
             "Huuh?",
             "Hmm?",
             "Yes Boss?"
         ]
 
-        # TARS-style farewell responses
+        # Witty farewell responses in TARS style
+        # Higher humor settings use these, lower settings use simple "Goodbye"
         self.farewell_responses = [
             "Powering down... just kidding, I'll be here.",
             "Back to standby. Don't get lost in any black holes while I'm gone.",
@@ -100,8 +132,14 @@ class TARS:
             "Stay safe out there. And remember, time is relative, but deadlines aren't."
         ]
 
-    # Rest of the methods remain unchanged
+    def strip_ssml_tags(self, text):
+        """Remove SSML tags for cleaner console output"""
+        if text.startswith('<speak>') and text.endswith('</speak>'):
+            return text[7:-8]  # Remove <speak> and </speak>
+        return text
+
     def load_humor_setting(self):
+        """Load humor setting from config file, create if not exists"""
         try:
             with open(self.config_file, 'r') as f:
                 config = json.loads(f.read())
@@ -115,6 +153,7 @@ class TARS:
             return 75
 
     def save_humor_setting(self, level):
+        """Save humor setting to config file"""
         if not (0 <= level <= 100):
             raise ValueError("Humor setting must be between 0 and 100")
         with open(self.config_file, 'w') as f:
@@ -122,6 +161,12 @@ class TARS:
         self.humor_setting = level
 
     def get_ai_response(self, text):
+        """
+        Generate AI response using OpenAI
+        - Handles humor setting commands
+        - Adds TARS personality context
+        - Includes hesitation expressions
+        """
         try:
             # Check if the input is a humor setting command
             if text.lower().startswith('set humor to '):
@@ -132,6 +177,7 @@ class TARS:
                 except ValueError:
                     return '<speak>Please provide a valid humor setting between 0 and 100 percent</speak>'
 
+            # Create system context with personality and humor setting
             system_context = f"""You are TARS from the movie Interstellar. You're witty, knowledgeable, 
                               and a bit sarcastic about human ignorance, but always helpful. 
                               Your humor setting is currently set to {self.humor_setting}%. Adjust your 
@@ -139,6 +185,7 @@ class TARS:
                               more straightforward responses. At 0% humor, you're completely serious,
                               at 100% you're highly entertaining but still informative."""
             
+            # Get response from OpenAI
             response = self.openai_client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -146,46 +193,50 @@ class TARS:
                     {"role": "user", "content": text}
                 ]
             )
-            # Add random hesitation before the response
+            # Add random hesitation and wrap in SSML
             hesitation = random.choice(self.hesitation_expressions)
-            # Wrap the entire response in SSML
-            ssml_response = f'<speak>{hesitation}{response.choices[0].message.content}</speak>'
-            return ssml_response
+            return f'<speak>{hesitation}{response.choices[0].message.content}</speak>'
         except Exception as e:
             print(f"OpenAI Error: {e}")
             return "Sorry, I couldn't process that request."
 
     def speak_response(self, text):
+        """
+        Convert text to speech using Google TTS
+        Handles both plain text and SSML input
+        """
         try:
-            # Check if the text is SSML (starts with <speak>)
+            # Handle SSML or plain text input
             if text.startswith('<speak>'):
                 input_text = texttospeech.SynthesisInput(ssml=text)
             else:
                 input_text = texttospeech.SynthesisInput(text=text)
             
+            # Configure voice parameters
             voice = texttospeech.VoiceSelectionParams(
                 language_code="en-US",
                 name="en-US-Neural2-D",
                 ssml_gender=texttospeech.SsmlVoiceGender.MALE
             )
             
+            # Configure audio parameters
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.LINEAR16,
                 speaking_rate=1.0,
                 pitch=0
             )
 
+            # Generate speech
             response = self.tts_client.synthesize_speech(
                 input=input_text,
                 voice=voice,
                 audio_config=audio_config
             )
 
-            # Save and play response
+            # Save and play response through ReSpeaker
             with open("response.wav", "wb") as out:
                 out.write(response.audio_content)
-                
-            # Use the ReSpeaker's playback device by name
+            
             playback_command = 'aplay -D plughw:CARD=seeed2micvoicec response.wav'
             os.system(playback_command)
 
@@ -194,6 +245,7 @@ class TARS:
             print(f"TARS: {text}")
 
     def _listen_for_command(self):
+        """Listen for and transcribe user command"""
         print("Listening for your command...")
         
         try:
@@ -205,7 +257,7 @@ class TARS:
                 try:
                     # Use Google Speech Recognition
                     text = self.recognizer.recognize_google(audio)
-                    print(f"You said: {text}")
+                    print(f"{self.GREEN}You said:{self.END} {text}")
                     return text.lower()
                 
                 except sr.UnknownValueError:
@@ -220,11 +272,19 @@ class TARS:
             return ""
 
     def conversation_mode(self):
+        """
+        Main conversation loop
+        - Handles command input
+        - Manages conversation timeouts
+        - Processes exit commands
+        - Controls response generation and playback
+        """
         print("Entering conversation mode...")
         commands_count = 0
         last_command_time = time.time()
         
         while True:
+            # Check conversation limits
             if commands_count >= 5:
                 print("Conversation limit reached. Going back to wake word mode.")
                 break
@@ -246,28 +306,32 @@ class TARS:
                         farewell = f'<speak>{random.choice(self.farewell_responses)}</speak>'
                     else:
                         farewell = '<speak>Goodbye.</speak>'
-                    print(f"TARS: {farewell}")
+                    print(f"{self.BLUE}TARS:{self.END} {self.strip_ssml_tags(farewell)}")
                     self.speak_response(farewell)
                     print("Ending conversation mode.")
                     break
                 else:
                     # Get and speak AI response
                     ai_response = self.get_ai_response(command)
-                    print(f"TARS: {ai_response}")
+                    print(f"{self.BLUE}TARS:{self.END} {self.strip_ssml_tags(ai_response)}")
                     self.speak_response(ai_response)
                 
                 last_command_time = time.time()
                 commands_count += 1
 
     def run(self):
-        # Get the supported sample rate from the device
+        """
+        Main run loop
+        - Handles wake word detection
+        - Manages conversation mode entry/exit
+        - Controls audio stream
+        """
+        # Configure audio stream
         supported_rate = int(self.device_info['defaultSampleRate'])
-        
-        # Set up initial audio stream for Porcupine
         porcupine_stream = self.pa.open(
             format=pyaudio.paInt16,
             channels=1,
-            rate=supported_rate,  # Use the device's supported rate
+            rate=supported_rate,
             input=True,
             frames_per_buffer=512,
             input_device_index=self.mic_index
@@ -277,28 +341,26 @@ class TARS:
             print("Listening for wake word 'Jarvis'...")
             
             while True:
-                # Wake word detection phase
-                # Adjust frame length based on sample rate ratio
+                # Process audio for wake word detection
                 adjusted_frame_length = int(supported_rate/16000 * self.porcupine.frame_length)
                 pcm = porcupine_stream.read(adjusted_frame_length, exception_on_overflow=False)
                 pcm = struct.unpack_from("h" * adjusted_frame_length, pcm)
                 
-                # Downsample to 16000 Hz for Porcupine if needed
+                # Downsample if needed
                 if supported_rate != 16000:
                     pcm = pcm[::int(supported_rate/16000)]
                 
+                # Check for wake word
                 if self.porcupine.process(pcm) >= 0:
                     print("Wake word detected! Starting conversation mode...")
                     
-                    # Randomly choose and speak a wake word response
+                    # Respond to wake word
                     wake_response = random.choice(self.wake_word_responses)
-                    print(f"TARS: {wake_response}")
+                    print(f"{self.BLUE}TARS:{self.END} {self.strip_ssml_tags(wake_response)}")
                     self.speak_response(wake_response)
                     
-                    # Temporarily stop wake word detection
+                    # Pause wake word detection during conversation
                     porcupine_stream.stop_stream()
-                    
-                    # Enter conversation mode
                     self.conversation_mode()
                     
                     # Resume wake word detection
@@ -308,7 +370,8 @@ class TARS:
         except KeyboardInterrupt:
             print("Stopping...")
         finally:
-            porcupine_stream.stop_stream()
+            # Clean up resources
+            porcupine_stream.stop_stream
             porcupine_stream.close()
             self.pa.terminate()
             self.porcupine.delete()
