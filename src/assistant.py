@@ -32,14 +32,13 @@ class TARS:
         self.recognizer = sr.Recognizer()
         
         # Find the correct microphone index
-        print("Searching for input devices...")
+        print("Initializing audio devices...", end='', flush=True)
         for i in range(self.pa.get_device_count()):
             dev_info = self.pa.get_device_info_by_index(i)
-            print(f"Checking device {i}: {dev_info['name']}")
             # Look for the 'array' device which represents our ReSpeaker
             if dev_info.get('name') == 'array' and dev_info.get('maxInputChannels') > 0:
                 self.mic_index = i
-                print(f"Found microphone array at index {i}")
+                print(" done")
                 break
         else:
             # Fallback to any device with input capabilities
@@ -47,23 +46,22 @@ class TARS:
                 dev_info = self.pa.get_device_info_by_index(i)
                 if dev_info.get('maxInputChannels') > 0:
                     self.mic_index = i
-                    print(f"Using fallback input device at index {i}: {dev_info['name']}")
+                    print("\nUsing fallback input device: " + dev_info['name'])
                     break
             else:
                 raise RuntimeError("Could not find any input device")
         
         # Store device info for later use
         self.device_info = self.pa.get_device_info_by_index(self.mic_index)
-        print(f"Using device with sample rate: {self.device_info['defaultSampleRate']}")
         
         # Adjust for ambient noise
         try:
             with sr.Microphone(device_index=self.mic_index) as source:
-                print("Calibrating ambient noise... Please wait.")
+                print("Calibrating microphone...", end='', flush=True)
                 self.recognizer.adjust_for_ambient_noise(source, duration=2)
+                print(" done")
         except Exception as e:
-            print(f"Error during ambient noise calibration: {e}")
-            print("Continuing with default parameters...")
+            print("\nError during calibration, using default parameters")
 
         # Initialize OpenAI
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -102,6 +100,7 @@ class TARS:
             "Stay safe out there. And remember, time is relative, but deadlines aren't."
         ]
 
+    # Rest of the methods remain unchanged
     def load_humor_setting(self):
         try:
             with open(self.config_file, 'r') as f:
@@ -259,7 +258,6 @@ class TARS:
                 
                 last_command_time = time.time()
                 commands_count += 1
-                
 
     def run(self):
         # Get the supported sample rate from the device
@@ -276,7 +274,7 @@ class TARS:
         )
         
         try:
-            print(f"Listening for wake word 'Jarvis' (using sample rate: {supported_rate})...")
+            print("Listening for wake word 'Jarvis'...")
             
             while True:
                 # Wake word detection phase
