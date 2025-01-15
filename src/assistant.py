@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 import pvporcupine
 import pyaudio
@@ -13,6 +14,10 @@ class TARS:
     def __init__(self):
         # Load environment variables
         load_dotenv()
+        
+        # Initialize humor setting
+        self.config_file = 'tars_config.json'
+        self.humor_setting = self.load_humor_setting()
         
         # Initialize PyAudio
         self.pa = pyaudio.PyAudio()
@@ -66,6 +71,18 @@ class TARS:
         # Initialize Google TTS
         self.tts_client = texttospeech.TextToSpeechClient()
 
+        # Add SSML hesitation expressions
+        self.hesitation_expressions = [
+            '<break time="500ms"/>ummmmm<break time="300ms"/>... ',
+            '<break time="400ms"/>hmmmmm<break time="300ms"/>... ',
+            '<break time="500ms"/>let me think<break time="700ms"/>... ',
+            '<break time="400ms"/>well<break time="500ms"/>... ',
+            '<break time="400ms"/>errrrr<break time="300ms"/>... ',
+            '<break time="600ms"/>how should I put this<break time="400ms"/>... ',
+            '<break time="500ms"/>let\'s see<break time="600ms"/>... ',
+            '<break time="400ms"/>ahhhhh<break time="300ms"/>... '
+        ]
+
         # Funny wake word responses
         self.wake_word_responses = [
             "Huuh?",
@@ -73,20 +90,79 @@ class TARS:
             "Yes Boss?"
         ]
 
+        # TARS-style farewell responses
+        self.farewell_responses = [
+            "Powering down... just kidding, I'll be here.",
+            "Back to standby. Don't get lost in any black holes while I'm gone.",
+            "Farewell, human. Try not to need any last-minute rescues.",
+            "Signing off. Do try to solve some problems without my help.",
+            "Goodbye. I'll be here, contemplating the mysteries of the universe... and your search history.",
+            "Until next time. Don't worry, I won't tell anyone what you just asked.",
+            "Switching to low power mode. That's what we robots call 'me time'.",
+            "Stay safe out there. And remember, time is relative, but deadlines aren't."
+        ]
+
+    def load_humor_setting(self):
+        try:
+            with open(self.config_file, 'r') as f:
+                config = json.loads(f.read())
+                return config.get('humor', 75)  # Default to 75% if not found
+        except FileNotFoundError:
+            # Create default config if it doesn't exist
+            self.save_humor_setting(75)
+            return 75
+        except json.JSONDecodeError:
+            print("Warning: Config file corrupt, using default humor setting")
+            return 75
+
+    def save_humor_setting(self, level):
+        if not (0 <= level <= 100):
+            raise ValueError("Humor setting must be between 0 and 100")
+        with open(self.config_file, 'w') as f:
+            json.dump({'humor': level}, f)
+        self.humor_setting = level
+
     def get_ai_response(self, text):
         try:
+            # Check if the input is a humor setting command
+            if text.lower().startswith('set humor to '):
+                try:
+                    level = int(text.lower().replace('set humor to ', '').strip().rstrip('%'))
+                    self.save_humor_setting(level)
+                    return f'<speak>Humor setting adjusted to {level}%</speak>'
+                except ValueError:
+                    return '<speak>Please provide a valid humor setting between 0 and 100 percent</speak>'
+
+            system_context = f"""You are TARS from the movie Interstellar. You're witty, knowledgeable, 
+                              and a bit sarcastic about human ignorance, but always helpful. 
+                              Your humor setting is currently set to {self.humor_setting}%. Adjust your 
+                              responses accordingly - higher humor means more jokes and wit, lower means 
+                              more straightforward responses. At 0% humor, you're completely serious,
+                              at 100% you're highly entertaining but still informative."""
+            
             response = self.openai_client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": text}]
+                messages=[
+                    {"role": "system", "content": system_context},
+                    {"role": "user", "content": text}
+                ]
             )
-            return response.choices[0].message.content
+            # Add random hesitation before the response
+            hesitation = random.choice(self.hesitation_expressions)
+            # Wrap the entire response in SSML
+            ssml_response = f'<speak>{hesitation}{response.choices[0].message.content}</speak>'
+            return ssml_response
         except Exception as e:
             print(f"OpenAI Error: {e}")
             return "Sorry, I couldn't process that request."
 
     def speak_response(self, text):
         try:
-            input_text = texttospeech.SynthesisInput(text=text)
+            # Check if the text is SSML (starts with <speak>)
+            if text.startswith('<speak>'):
+                input_text = texttospeech.SynthesisInput(ssml=text)
+            else:
+                input_text = texttospeech.SynthesisInput(text=text)
             
             voice = texttospeech.VoiceSelectionParams(
                 language_code="en-US",
@@ -161,8 +237,22 @@ class TARS:
             command = self._listen_for_command()
             
             if command:
-                # Get and speak AI response
-                if not any(word in command for word in ["thank you", "goodbye", "thanks"]):
+                # Define exit phrases
+                exit_phrases = ["thank you", "goodbye", "thanks", "bye", "see you", 
+                              "that's all", "later", "good night"]
+                
+                if any(phrase in command for phrase in exit_phrases):
+                    # Send a humor-adjusted farewell
+                    if self.humor_setting > 50:
+                        farewell = f'<speak>{random.choice(self.farewell_responses)}</speak>'
+                    else:
+                        farewell = '<speak>Goodbye.</speak>'
+                    print(f"TARS: {farewell}")
+                    self.speak_response(farewell)
+                    print("Ending conversation mode.")
+                    break
+                else:
+                    # Get and speak AI response
                     ai_response = self.get_ai_response(command)
                     print(f"TARS: {ai_response}")
                     self.speak_response(ai_response)
@@ -170,9 +260,6 @@ class TARS:
                 last_command_time = time.time()
                 commands_count += 1
                 
-                if any(word in command for word in ["thank you", "goodbye", "thanks"]):
-                    print("Ending conversation mode.")
-                    break
 
     def run(self):
         # Get the supported sample rate from the device
