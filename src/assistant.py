@@ -231,7 +231,7 @@ class TARS:
             # Configure audio parameters
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-                speaking_rate=0.92,
+                speaking_rate=1,
                 pitch=0
             )
 
