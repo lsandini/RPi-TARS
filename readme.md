@@ -2,38 +2,32 @@
 
 ## Overview
 
-TARS is an advanced voice-activated AI assistant that leverages multiple cutting-edge technologies to provide an interactive conversational experience. The assistant uses wake word detection, speech recognition, AI-powered responses, and text-to-speech capabilities.
+TARS is an advanced voice-activated AI assistant inspired by the TARS robot from Interstellar. It leverages multiple cutting-edge technologies to provide an interactive conversational experience with adjustable humor settings and space-themed responses.
 
 ## Key Features
 
-- Wake word detection using Porcupine
+- Dual wake word detection ('Jarvis' and custom 'TARS') using Porcupine
 - Speech recognition using Google Speech Recognition
-- AI responses powered by OpenAI
+- AI responses powered by OpenAI with TARS personality
 - Text-to-speech output using Google Cloud Text-to-Speech
+- Adjustable humor settings (0-100%)
 - Continuous conversation mode
 - Automatic timeout and conversation limit management
 
 ## Prerequisites
 
 ### Hardware Requirements
-- Microphone input device
-- Speaker or audio output device
 - Raspberry Pi 4 (recommended)
+- ReSpeaker 4-Mic Array (recommended) or USB microphone
+- Speaker or audio output device
 
 ### Software Requirements
+- Raspberry Pi OS (64-bit recommended)
 - Python 3.8+
-- Linux operating system (tested on Ubuntu/Raspbian)
 
 ## Installation
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/yourusername/RPi-TARS.git
-cd RPi-TARS
-```
-
-### 2. Install System Dependencies
-For Ubuntu/Debian:
+### 1. Install System Dependencies
 ```bash
 # Update package lists
 sudo apt-get update
@@ -48,6 +42,18 @@ sudo apt-get install -y \
     libasound2-dev \
     flac \
     git
+
+# Install seeed-voicecard drivers (for ReSpeaker 4-Mic Array)
+git clone https://github.com/HinTak/seeed-voicecard
+cd seeed-voicecard
+sudo ./install.sh
+sudo reboot
+```
+
+### 2. Clone and Setup Repository
+```bash
+git clone https://github.com/yourusername/RPi-TARS.git
+cd RPi-TARS
 ```
 
 ### 3. Install Python Dependencies
@@ -55,8 +61,9 @@ sudo apt-get install -y \
 pip3 install -r requirements.txt
 ```
 
-### 4. Set Up API Keys
+### 4. Set Up Configuration Files
 
+#### Create .env File
 Create a `.env` file in the project root with the following keys:
 ```
 PICOVOICE_KEY=your_picovoice_access_key
@@ -64,74 +71,81 @@ OPENAI_API_KEY=your_openai_api_key
 GOOGLE_APPLICATION_CREDENTIALS=google-service-account.json
 ```
 
-#### Obtaining API Keys
+#### Setup Google Cloud Credentials
+1. Place your `google-service-account.json` file in the project root
+2. Ensure the file path matches the GOOGLE_APPLICATION_CREDENTIALS in .env
 
-1. **Picovoice Access Key**
-   - Visit [Picovoice Console](https://console.picovoice.ai/)
-   - Create an account and obtain your Porcupine wake word engine access key
+### 5. Obtain Required API Keys
 
-2. **OpenAI API Key**
-   - Go to [OpenAI Platform](https://platform.openai.com/)
-   - Create an account or log in
-   - Navigate to API keys section and generate a new key
+#### Picovoice Access Key
+1. Visit [Picovoice Console](https://console.picovoice.ai/)
+2. Create an account and obtain your access key
+3. Train your custom wake word (optional)
+4. Download and place the .ppn file in project root (if using custom wake word)
 
-3. **Google Cloud Service Account**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select an existing one
-   - Enable the Text-to-Speech API
-   - Create a service account
-   - Download the JSON key file
-   - Place the JSON file in your project root
+#### OpenAI API Key
+1. Go to [OpenAI Platform](https://platform.openai.com/)
+2. Create an account or log in
+3. Navigate to API keys section
+4. Generate a new key
 
-### Configuration
+#### Google Cloud Setup
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project
+3. Enable the Text-to-Speech API
+4. Create a service account
+5. Download the JSON key file
+6. Place it in project root as google-service-account.json
 
-#### Audio Device Index
-You may need to adjust the audio device index in the code. Use the following command to list audio devices:
-```bash
-python3 -c "import speech_recognition as sr; print('\n'.join([f'{index}: {name}' for index, name in enumerate(sr.Microphone.list_microphone_names())]))"
-```
-
-## Running the Assistant
-
+### 6. Run the Assistant
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
 
-### Usage
-- Say "Jarvis" to activate the assistant
-- Speak your command or question
-- The assistant will respond verbally
-- Say "thank you" or "goodbye" to end the conversation
+## Usage
 
-## Dependencies
+### Wake Words
+- Say "Jarvis" or your custom wake word to activate
+- Wait for acknowledgment sound
 
-- pvporcupine: Wake word detection
-- SpeechRecognition: Speech recognition
-- pyaudio: Audio input/output
-- openai: AI response generation
-- python-dotenv: Environment variable management
-- google-cloud-texttospeech: Text-to-speech conversion
+### Commands
+- Speak naturally after wake word activation
+- You can adjust humor with "set humor to X%" (0-100)
+- End conversation with "thank you" or "goodbye"
+- Max 5 commands per conversation
+- 10-second timeout between commands
+
+### Audio Setup
+If using different microphone hardware:
+```bash
+# List available audio devices
+python3 -c "import speech_recognition as sr; print('\n'.join([f'{index}: {name}' for index, name in enumerate(sr.Microphone.list_microphone_names())]))"
+```
 
 ## Troubleshooting
 
-- Ensure all API keys are correctly set
-- Check microphone permissions
-- Verify audio device index
-- Confirm internet connection for speech recognition
-- Make sure all dependencies are installed
+### Audio Issues
+- Verify microphone is recognized: `arecord -l`
+- Check speaker output: `aplay -l`
+- Test microphone recording: `arecord -D plughw:CARD=seeed4micvoicec,DEV=0 -f S16_LE -r 16000 -c 4 test.wav`
+- Test playback: `aplay test.wav`
+
+### Common Problems
+- No sound: Check audio output device in playback_command
+- Wake word not detected: Verify Picovoice key and .ppn file
+- Speech not recognized: Check internet connection
+- No response: Verify OpenAI API key
+- No voice output: Check Google Cloud credentials
 
 ## Limitations
 
-- Requires a stable internet connection
-- Performance depends on microphone quality
-- Limited to English language
-- Conversation has a 5-command or 10-second timeout
-- Uses Google's free speech recognition service with usage limits
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- Requires stable internet connection
+- English language only
+- 5-command conversation limit
+- 10-second timeout between commands
+- API rate limits apply (Google Speech, OpenAI)
+- Wake word sensitivity may need adjustment
 
 ## License
 
@@ -139,6 +153,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Acknowledgments
 
+- Interstellar movie for TARS character inspiration
 - Picovoice for Porcupine wake word engine
-- OpenAI for language model
+- OpenAI for GPT language model
 - Google for Speech Recognition and Text-to-Speech
+- Seeed Studio for ReSpeaker hardware/drivers

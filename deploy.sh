@@ -1,5 +1,5 @@
 #!/bin/bash
 
 git add .
-git commit -m "improve openAI prompt"
+git commit -m "add custom wake word"
 git push -u origin main

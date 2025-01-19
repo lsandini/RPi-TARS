@@ -20,7 +20,7 @@ class TARS:
     TARS Voice Assistant Class
     
     This class implements a voice-activated AI assistant that:
-    - Listens for the wake word "Jarvis"
+    - Listens for wake words "Jarvis" or "TARS"
     - Uses Google Speech Recognition for command interpretation
     - Generates responses using OpenAI's GPT models
     - Converts responses to speech using Google TTS
@@ -52,10 +52,11 @@ class TARS:
         # Initialize PyAudio for audio handling
         self.pa = pyaudio.PyAudio()
         
-        # Initialize Porcupine wake word detector
+        # Initialize Porcupine wake word detector with multiple keywords
         self.porcupine = pvporcupine.create(
             access_key=os.getenv('PICOVOICE_KEY'),
-            keywords=['jarvis']
+            keywords=['jarvis'],
+            keyword_paths=['TARS_wake_word.ppn']
         )
         
         # Initialize Speech Recognizer
@@ -127,7 +128,7 @@ class TARS:
             "Farewell, human. Try not to need any last-minute rescues.",
             "Signing off. Do try to solve some problems without my help.",
             "Goodbye. I'll be here, contemplating the mysteries of the universe... and your search history.",
-            "Until next time. Don't worry, I won't tell anyone what you just asked.",
+            "Until next time. I won't tell anyone what you just asked.",
             "Switching to low power mode. That's what we robots call 'me time'.",
             "Stay safe out there. And remember, time is relative, but deadlines aren't."
         ]
@@ -329,58 +330,62 @@ class TARS:
                 commands_count += 1
 
     def run(self):
-        """
-        Main run loop
-        - Handles wake word detection
-        - Manages conversation mode entry/exit
-        - Controls audio stream
-        """
-        # Configure audio stream
-        supported_rate = int(self.device_info['defaultSampleRate'])
-        porcupine_stream = self.pa.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=supported_rate,
-            input=True,
-            frames_per_buffer=512,
-            input_device_index=self.mic_index
-        )
-        
-        try:
-            print("Listening for wake word 'Jarvis'...")
+            """
+            Main run loop
+            - Handles wake word detection
+            - Manages conversation mode entry/exit
+            - Controls audio stream
+            """
+            # Configure audio stream
+            supported_rate = int(self.device_info['defaultSampleRate'])
+            porcupine_stream = self.pa.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=supported_rate,
+                input=True,
+                frames_per_buffer=512,
+                input_device_index=self.mic_index
+            )
             
-            while True:
-                # Process audio for wake word detection
-                adjusted_frame_length = int(supported_rate/16000 * self.porcupine.frame_length)
-                pcm = porcupine_stream.read(adjusted_frame_length, exception_on_overflow=False)
-                pcm = struct.unpack_from("h" * adjusted_frame_length, pcm)
+            try:
+                print("Listening for wake words ('Jarvis' or 'TARS')...")
                 
-                # Downsample if needed
-                if supported_rate != 16000:
-                    pcm = pcm[::int(supported_rate/16000)]
-                
-                # Check for wake word
-                if self.porcupine.process(pcm) >= 0:
-                    print("Wake word detected! Starting conversation mode...")
+                while True:
+                    # Process audio for wake word detection
+                    adjusted_frame_length = int(supported_rate/16000 * self.porcupine.frame_length)
+                    pcm = porcupine_stream.read(adjusted_frame_length, exception_on_overflow=False)
+                    pcm = struct.unpack_from("h" * adjusted_frame_length, pcm)
                     
-                    # Respond to wake word
-                    wake_response = random.choice(self.wake_word_responses)
-                    print(f"{self.BLUE}TARS:{self.END} {self.strip_ssml_tags(wake_response)}")
-                    self.speak_response(wake_response)
+                    # Downsample if needed
+                    if supported_rate != 16000:
+                        pcm = pcm[::int(supported_rate/16000)]
                     
-                    # Pause wake word detection during conversation
-                    porcupine_stream.stop_stream()
-                    self.conversation_mode()
-                    
-                    # Resume wake word detection
-                    porcupine_stream.start_stream()
-                    print("Listening for wake word 'Jarvis'...")
-                    
-        except KeyboardInterrupt:
-            print("Stopping...")
-        finally:
-            # Clean up resources
-            porcupine_stream.stop_stream
-            porcupine_stream.close()
-            self.pa.terminate()
-            self.porcupine.delete()
+                    # Check for wake word
+                    keyword_index = self.porcupine.process(pcm)
+                    if keyword_index >= 0:
+                        wake_word = "TARS" if keyword_index == 1 else "Jarvis"
+                        print(f"Wake word '{wake_word}' detected! Starting conversation mode...")
+                        
+                        # Respond to wake word
+                        wake_response = random.choice(self.wake_word_responses)
+                        print(f"{self.BLUE}TARS:{self.END} {self.strip_ssml_tags(wake_response)}")
+                        self.speak_response(wake_response)
+                        
+                        # Pause wake word detection during conversation
+                        porcupine_stream.stop_stream()
+                        self.conversation_mode()
+                        
+                        # Resume wake word detection
+                        porcupine_stream.start_stream()
+                        print("Listening for wake words ('Jarvis' or 'TARS')...")
+                        
+            except KeyboardInterrupt:
+                print("\nStopping...")
+            except Exception as e:
+                print(f"\nError in main loop: {e}")
+            finally:
+                # Clean up resources
+                porcupine_stream.stop_stream()
+                porcupine_stream.close()
+                self.pa.terminate()
+                self.porcupine.delete()
