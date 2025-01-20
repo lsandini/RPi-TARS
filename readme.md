@@ -142,6 +142,33 @@ If using different microphone hardware:
 python3 -c "import speech_recognition as sr; print('\n'.join([f'{index}: {name}' for index, name in enumerate(sr.Microphone.list_microphone_names())]))"
 ```
 
+### Audio Setup and Configuration
+
+#### Making Volume Settings Persistent
+To ensure volume settings persist after reboot, add these commands to `/etc/rc.local` (before the `exit 0` line):
+```bash
+# Set audio levels for seeed2micvoicec
+sleep 5  # Wait for sound card initialization
+amixer -c seeed2micvoicec set Playback 180
+amixer -c seeed2micvoicec set Speaker 180
+amixer -c seeed2micvoicec set 'Speaker AC' 4
+amixer -c seeed2micvoicec set 'Speaker DC' 4
+
+# Input settings (microphone)
+amixer -c seeed2micvoicec set Capture 54
+amixer -c seeed2micvoicec set 'ADC PCM' 195
+amixer -c seeed2micvoicec set 'Left Input Boost Mixer LINPUT1' 3
+amixer -c seeed2micvoicec set 'Right Input Boost Mixer RINPUT1' 3
+
+alsactl store
+```
+
+#### Checking Current Settings
+You can verify current volume levels with:
+```bash
+amixer -c seeed2micvoicec get Playback
+amixer -c seeed2micvoicec get Speaker
+`
 ## Troubleshooting
 
 ### Audio Issues
