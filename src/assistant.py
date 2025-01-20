@@ -115,9 +115,21 @@ class TARS:
 
         # Simple wake word acknowledgment responses
         self.wake_word_responses = [
-            "Huuh?",
-            "Hmm?",
-            "Yes Boss?"
+            "Yeeeaaah?",
+            "Mmmhm?",
+            "Whaaaaat?",
+            "*sigh* Yes?",
+            "Uh-huh?",
+            "Hrmph... what now?",
+            "*yawn* I'm here.",
+            "Yeeeees, boss?",
+            "You raaaang?",
+            "*stretches* What is it?",
+            "Mmmm... I'm listening.",
+            "*bored sigh* Go ahead.",
+            "Whaddya want?",
+            "*slow, robotic voice* A-c-know-ledged.",
+            "Mmm-hmm. I'm all ears. *sarcastic tone*",
         ]
 
         # Witty farewell responses in TARS style
