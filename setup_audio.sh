@@ -25,17 +25,13 @@ amixer -c $CARD set 'PCM Playback -6dB' off
 
 # Capture settings
 amixer -c $CARD set 'Capture' 63
-amixer -c $CARD set 'Capture' cap
 amixer -c $CARD set 'ADC PCM' 195
 amixer -c $CARD set 'Left Input Boost Mixer LINPUT1' 3
 amixer -c $CARD set 'Right Input Boost Mixer RINPUT1' 3
+amixer -c $CARD set 'ALC Max Gain' 7
+amixer -c $CARD set 'ALC Min Gain' 0
+amixer -c $CARD set 'Noise Gate' off
 amixer -c $CARD set 'Left Input Mixer Boost' on
 amixer -c $CARD set 'Right Input Mixer Boost' on
-
-# Optional advanced settings
-amixer -c $CARD set '3D' 15
-amixer -c $CARD set '3D Filter Lower Cut-Off' High
-amixer -c $CARD set '3D Filter Upper Cut-Off' High
-amixer -c $CARD set 'ALC Function' 'Stereo'
 
 echo "Audio configuration complete for $CARD!"
