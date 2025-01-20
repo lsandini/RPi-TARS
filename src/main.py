@@ -16,7 +16,7 @@ logging.basicConfig(
 def main():
     try:
         tars = TARS()
-        print("Listening for wake word 'Jarvis'...")
+        # print("Listening for wake word 'Jarvis'...")
         tars.run()
     except Exception as e:
         print(f"Error: {e}")
