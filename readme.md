@@ -116,6 +116,25 @@ chmod +x run.sh
 - Max 5 commands per conversation
 - 10-second timeout between commands
 
+### Terminal Output Options
+TARS can output to both SSH and local terminal (tty1) simultaneously, which is useful when running on a headless Raspberry Pi with an LCD display. To enable dual output:
+
+```bash
+# Clear the local terminal first (optional)
+clear | sudo tee /dev/tty1
+
+# Run TARS with output to both SSH and tty1
+sudo script -f /dev/tty1 -c "sudo -u lorenzo ./run.sh"
+```
+
+The command structure explained:
+- `script -f /dev/tty1`: Captures and redirects output to tty1 while preserving proper stdin handling
+- First `sudo`: Required for accessing tty1
+- `sudo -u lorenzo`: Runs TARS as the original user to maintain correct audio permissions
+- Without this approach, simple pipe redirection (|) would interfere with audio input handling
+
+Note: Replace 'lorenzo' with your username when using the command.
+
 ### Audio Setup
 If using different microphone hardware:
 ```bash
