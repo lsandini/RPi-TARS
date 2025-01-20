@@ -64,13 +64,13 @@ class TARS:
         self.recognizer = sr.Recognizer()
         
         # Find and configure the appropriate microphone
-        self.white_print("Initializing audio devices...", end='', flush=True)
+        print("Initializing audio devices...", end='', flush=True)
         for i in range(self.pa.get_device_count()):
             dev_info = self.pa.get_device_info_by_index(i)
             # First try to find ReSpeaker array microphone
             if dev_info.get('name') == 'array' and dev_info.get('maxInputChannels') > 0:
                 self.mic_index = i
-                self.white_print(" done")
+                print(" done")
                 break
         else:
             # Fallback to any available input device
@@ -78,7 +78,7 @@ class TARS:
                 dev_info = self.pa.get_device_info_by_index(i)
                 if dev_info.get('maxInputChannels') > 0:
                     self.mic_index = i
-                    self.white_print("\nUsing fallback input device: " + dev_info['name'])
+                    print("\nUsing fallback input device: " + dev_info['name'])
                     break
             else:
                 raise RuntimeError("Could not find any input device")
@@ -89,11 +89,11 @@ class TARS:
         # Calibrate microphone for ambient noise
         try:
             with sr.Microphone(device_index=self.mic_index) as source:
-                self.white_print("Calibrating microphone...", end='', flush=True)
+                print("Calibrating microphone...", end='', flush=True)
                 self.recognizer.adjust_for_ambient_noise(source, duration=2)
-                self.white_print(" done")
+                print(" done")
         except Exception as e:
-            self.white_print("\nError during calibration, using default parameters")
+            print("\nError during calibration, using default parameters")
 
         # Initialize OpenAI client
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -146,12 +146,6 @@ class TARS:
             "Stay safe out there. And remember, time is relative, but deadlines aren't."
         ]
 
-    def white_print(self, *args, **kwargs):
-        """Print in white for general messages"""
-        print(f"{self.WHITE}", end='')
-        print(*args, **kwargs, end='')
-        print(f"{self.END}")
-
     def strip_ssml_tags(self, text):
         """Remove all SSML tags for cleaner console output"""
         import re
@@ -170,7 +164,7 @@ class TARS:
             self.save_humor_setting(75)
             return 75
         except json.JSONDecodeError:
-            self.white_print("Warning: Config file corrupt, using default humor setting")
+            print("Warning: Config file corrupt, using default humor setting")
             return 75
 
     def save_humor_setting(self, level):
@@ -226,7 +220,7 @@ class TARS:
             hesitation = random.choice(self.hesitation_expressions)
             return f'<speak>{hesitation}{response.choices[0].message.content}</speak>'
         except Exception as e:
-            self.white_print(f"OpenAI Error: {e}")
+            print(f"OpenAI Error: {e}")
             return "Sorry, I couldn't process that request."
 
     def speak_response(self, text):
@@ -270,12 +264,12 @@ class TARS:
             os.system(playback_command)
 
         except Exception as e:
-            self.white_print(f"TTS Error: {e}")
-            self.white_print(f"TARS: {text}")
+            print(f"TTS Error: {e}")
+            print(f"TARS: {text}")
 
     def _listen_for_command(self):
         """Listen for and transcribe user command"""
-        self.white_print("Listening for your command...")
+        print("Listening for your command...")
         
         try:
             with sr.Microphone(device_index=self.mic_index) as source:
@@ -290,14 +284,14 @@ class TARS:
                     return text.lower()
                 
                 except sr.UnknownValueError:
-                    self.white_print("Could not understand audio")
+                    print("Could not understand audio")
                     return ""
                 except sr.RequestError as e:
-                    self.white_print(f"Could not request results; {e}")
+                    print(f"Could not request results; {e}")
                     return ""
         
         except Exception as e:
-            self.white_print(f"Listening error: {e}")
+            print(f"Listening error: {e}")
             return ""
 
     def conversation_mode(self):
@@ -308,18 +302,18 @@ class TARS:
         - Processes exit commands
         - Controls response generation and playback
         """
-        self.white_print("Entering conversation mode...")
+        print("Entering conversation mode...")
         commands_count = 0
         last_command_time = time.time()
         
         while True:
             # Check conversation limits
             if commands_count >= 5:
-                self.white_print("Conversation limit reached. Going back to wake word mode.")
+                print("Conversation limit reached. Going back to wake word mode.")
                 break
                 
             if time.time() - last_command_time > 10:
-                self.white_print("Conversation timeout. Going back to wake word mode.")
+                print("Conversation timeout. Going back to wake word mode.")
                 break
             
             command = self._listen_for_command()
@@ -337,7 +331,7 @@ class TARS:
                         farewell = '<speak>Goodbye.</speak>'
                     print(f"{self.BLUE}TARS:{self.END} {self.strip_ssml_tags(farewell)}")
                     self.speak_response(farewell)
-                    self.white_print("Ending conversation mode.")
+                    print("Ending conversation mode.")
                     break
                 else:
                     # Get and speak AI response
@@ -383,7 +377,7 @@ class TARS:
                     keyword_index = self.porcupine.process(pcm)
                     if keyword_index >= 0:
                         wake_word = "TARS" if keyword_index == 1 else "Jarvis"
-                        self.white_print(f"Wake word '{wake_word}' detected! Starting conversation mode...")
+                        print(f"Wake word '{wake_word}' detected! Starting conversation mode...")
                         
                         # Respond to wake word
                         wake_response = random.choice(self.wake_word_responses)
@@ -396,12 +390,12 @@ class TARS:
                         
                         # Resume wake word detection
                         porcupine_stream.start_stream()
-                        self.white_print("Listening for wake words ('Jarvis' or 'TARS')...")
+                        print("Listening for wake words ('Jarvis' or 'TARS')...")
                         
             except KeyboardInterrupt:
-                self.white_print("\nStopping...")
+                print("\nStopping...")
             except Exception as e:
-                self.white_print(f"\nError in main loop: {e}")
+                print(f"\nError in main loop: {e}")
             finally:
                 # Clean up resources
                 porcupine_stream.stop_stream()
