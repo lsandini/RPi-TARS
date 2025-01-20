@@ -115,21 +115,21 @@ class TARS:
 
         # Simple wake word acknowledgment responses
         self.wake_word_responses = [
-            "Yeeeaaah?",
-            "Mmmhm?",
-            "Whaaaaat?",
-            "*sigh* Yes?",
-            "Uh-huh?",
-            "Hrmph... what now?",
-            "*yawn* I'm here.",
-            "Yeeeees, boss?",
-            "You raaaang?",
-            "*stretches* What is it?",
-            "Mmmm... I'm listening.",
-            "*bored sigh* Go ahead.",
-            "Whaddya want?",
-            "*slow, robotic voice* A-c-know-ledged.",
-            "Mmm-hmm. I'm all ears. *sarcastic tone*",
+            '<speak><prosody rate="slow" pitch="-2st">Yeah?</prosody></speak>',
+            '<speak><prosody rate="slow" pitch="-2st">Mm-hmm?</prosody></speak>',
+            '<speak><prosody rate="slow" pitch="-2st">Whaat?</prosody></speak>',
+            '<speak><prosody rate="slow" pitch="-2st"><break time="1s"/>Yes?</prosody></speak>',
+            '<speak><prosody rate="slow" pitch="-2st">Uh-huh?</prosody></speak>',
+            '<speak><prosody rate="slow" pitch="-2st"><break time="1s"/>What now?</prosody></speak>',
+            '<speak><prosody rate="60%" pitch="-2st">I\'m here.</prosody></speak>',
+            '<speak><prosody rate="60%" pitch="-2st">Yeees, boss?</prosody></speak>',
+            '<speak><prosody rate="60%" pitch="-2st">You raaang?</prosody></speak>',
+            '<speak><prosody rate="60%" pitch="-2st">What is it?</prosody></speak>',
+            '<speak><prosody rate="60%" pitch="-2st">I\'m listening.</prosody></speak>',
+            '<speak><prosody rate="60%" pitch="-2st"><break time="1s"/>Go ahead.</prosody></speak>',
+            '<speak><prosody rate="60%" pitch="-2st">Whaddya want?</prosody></speak>',
+            '<speak><prosody rate="60%" pitch="-2st">Ac-knowledged.</prosody></speak>',
+            '<speak><prosody rate="60%" pitch="-2st">I\'m all ears.</prosody></speak>',
         ]
 
         # Witty farewell responses in TARS style
