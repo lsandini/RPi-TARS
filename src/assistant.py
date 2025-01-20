@@ -43,6 +43,7 @@ class TARS:
         self.BOLD = '\033[1m'
         self.GREEN = '\033[1;32m'  # Bold green for user messages
         self.BLUE = '\033[1;34m'   # Bold blue for TARS responses
+        self.WHITE = '\033[1;37m'  # Bold white for general text
         self.END = '\033[0m'
         
         # Initialize humor setting from config file
@@ -360,7 +361,7 @@ class TARS:
             )
             
             try:
-                print("Listening for wake words ('Jarvis' or 'TARS')...")
+                print(f"{self.WHITE}Listening for wake words ('Jarvis' or 'TARS')...{self.END}")
                 
                 while True:
                     # Process audio for wake word detection
