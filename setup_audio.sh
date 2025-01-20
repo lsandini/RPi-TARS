@@ -12,16 +12,16 @@ CARD="seeed2micvoicec"
 echo "Configuring audio settings for $CARD..."
 
 # Your custom settings
-amixer -c $CARD set Playback 180
-amixer -c $CARD set Speaker 180
-amixer -c $CARD set 'Speaker AC' 4
-amixer -c $CARD set 'Speaker DC' 4
+amixer -c $CARD set Playback 200
+amixer -c $CARD set Speaker 200
+amixer -c $CARD set 'Speaker AC' 5
+amixer -c $CARD set 'Speaker DC' 5
 
 # General playback settings
 amixer -c $CARD set 'Headphone' 127
 amixer -c $CARD set 'Headphone Playback ZC' on
 amixer -c $CARD set 'Speaker Playback ZC' on
-amixer -c $CARD set 'PCM Playback -6dB' on
+amixer -c $CARD set 'PCM Playback -6dB' off
 
 # Capture settings
 amixer -c $CARD set 'Capture' 63
